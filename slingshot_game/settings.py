@@ -11,7 +11,7 @@ SECRET_KEY = "skeh-xmdnlsxpdlf-chwjfwjd-althsu-duwkclsrn"
 
 DEBUG = False
 
-ALLOWED_HOSTS = ["https://throwmotion.onrender.com"]
+ALLOWED_HOSTS = ["throwmotion.onrender.com"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
