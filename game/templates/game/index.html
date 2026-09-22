@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>슬링샷 대전 - 임시 테스트</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #1b1f27;
+    color: #eee;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    overflow: hidden;
+  }
+  #ui-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #12151b;
+    border-bottom: 2px solid #2c313c;
+  }
+  #ui-bar h1 {
+    font-size: 16px;
+    margin: 0;
+    margin-right: 12px;
+    color: #ffd76a;
+  }
+  #ui-bar button {
+    background: #2c313c;
+    color: #eee;
+    border: 1px solid #444b58;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #ui-bar button:hover { background: #3a4152; }
+  #ui-bar button.active { background: #ffb020; color: #1b1f27; font-weight: bold; }
+  #game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+  #note {
+    margin-left: auto;
+    font-size: 12px;
+    color: #9aa3b2;
+  }
+</style>
+</head>
+<body>
+
+<div id="ui-bar">
+  <h1>새총 대전 - 임시 마우스 조작 테스트</h1>
+  <button id="map1-btn">맵 1</button>
+  <button id="map2-btn">맵 2</button>
+  <button id="reset-btn">다시하기</button>
+  <span id="note">새(공)을 마우스로 당겨서 발사하세요 (웹캠 대신 마우스 드래그 모드)</span>
+</div>
+
+<div id="game-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<script src="{% static 'game/js/maps.js' %}"></script>
+<script src="{% static 'game/js/game.js' %}"></script>
+
+</body>
+</html>

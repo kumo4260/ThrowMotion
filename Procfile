@@ -1,0 +1,1 @@
+web: gunicorn slingshot_game.wsgi
