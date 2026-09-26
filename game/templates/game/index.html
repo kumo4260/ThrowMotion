@@ -50,23 +50,80 @@
     font-size: 12px;
     color: #9aa3b2;
   }
+  #ui-bar button.mode-btn {
+    background: #1c2e22;
+    border-color: #2f5e3a;
+  }
+  #ui-bar button.mode-btn.active {
+    background: #4bc86a;
+    color: #10241a;
+  }
+  #game-container {
+    position: relative;
+  }
+  #cam-box {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    width: 220px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    background: #12151b;
+    border: 1px solid #2c313c;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 10;
+  }
+  #cam-video-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  #cam-video, #cam-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: scaleX(-1); /* 거울 모드로 자연스럽게 보이도록 좌우 반전 */
+  }
+  #cam-status {
+    font-size: 12px;
+    color: #9aa3b2;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
 
 <div id="ui-bar">
-  <h1>새총 대전 - 임시 마우스 조작 테스트</h1>
+  <h1>새총 대전</h1>
   <button id="map1-btn">맵 1</button>
   <button id="map2-btn">맵 2</button>
   <button id="reset-btn">다시하기</button>
-  <span id="note">새(공)을 마우스로 당겨서 발사하세요 (웹캠 대신 마우스 드래그 모드)</span>
+  <button id="mouse-mode-btn" class="mode-btn active">마우스 모드</button>
+  <button id="cam-mode-btn" class="mode-btn">캠 모드</button>
+  <span id="note">새(공)을 마우스로 당겨서 발사하세요</span>
 </div>
 
-<div id="game-container"></div>
+<div id="game-container">
+  <div id="cam-box">
+    <div id="cam-video-wrap">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <canvas id="cam-overlay"></canvas>
+    </div>
+    <div id="cam-status">카메라 대기 중</div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 <script src="{% static 'game/js/maps.js' %}"></script>
 <script src="{% static 'game/js/game.js' %}"></script>
+<script type="module" src="{% static 'game/js/hand_control.js' %}"></script>
 
 </body>
 </html>

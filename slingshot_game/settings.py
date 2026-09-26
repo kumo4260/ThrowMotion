@@ -3,15 +3,18 @@
 나중에 회원가입/로그인/전적 API
 DATABASES, INSTALLED_APPS 의 'rest_framework' 등을 확장
 """
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "skeh-xmdnlsxpdlf-chwjfwjd-althsu-duwkclsrn"
 
-DEBUG = False
+# 로컬에서 `python manage.py runserver`로 테스트할 때는
+# DJANGO_DEBUG=1 환경변수를 설정하면 DEBUG가 켜집니다. (배포 환경은 기본값 False 유지)
+DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
-ALLOWED_HOSTS = ["throwmotion.onrender.com"]
+ALLOWED_HOSTS = ["throwmotion.onrender.com", "127.0.0.1", "localhost"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

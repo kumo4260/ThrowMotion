@@ -1,7 +1,8 @@
 // ------------------------------------------------------------------
-// 임시 테스트 버전: 웹캠/MediaPipe 손 인식 대신 "마우스 드래그"로 새총 조작.
-// 나중에 MediaPipe 연동 시 onDragStart / onDragMove / onDragEnd 세 군데만
-// 손가락 좌표(Grab/Release 판정 결과)로 교체하면 됩니다.
+// 새총 조작: "마우스 드래그" 모드와 MediaPipe Hands 기반 "캠(주먹 쥐기)" 모드를
+// 모두 지원한다. 실제 당기기/발사 로직은 beginPull/movePull/finishPull에만
+// 있고, 마우스 이벤트와 hand_control.js(window.campullBegin/Move/End)가
+// 둘 다 이 메서드들을 호출한다.
 // ------------------------------------------------------------------
 
 const GAME_W = 1200;
@@ -14,6 +15,11 @@ const DAMAGE_SPEED_THRESHOLD = 90; // 이 속도 이상으로 충돌해야 블�
 
 let currentMapIndex = 0;
 let gameInstance = null;
+let controlMode = "mouse"; // "mouse" | "cam"
+
+function getActiveScene() {
+  return gameInstance ? gameInstance.scene.getScene("GameScene") : null;
+}
 
 class GameScene extends Phaser.Scene {
   constructor() {
@@ -125,26 +131,21 @@ class GameScene extends Phaser.Scene {
     this.input.setDraggable(this.bird);
 
     this.input.on("dragstart", (pointer, obj) => {
+      if (controlMode !== "mouse") return;
       if (obj !== this.bird || this.isFlying || this.isGameOver) return;
       this.isDragging = true;
     });
 
     this.input.on("drag", (pointer, obj, dragX, dragY) => {
+      if (controlMode !== "mouse") return;
       if (obj !== this.bird || !this.isDragging) return;
-      const dx = dragX - this.anchor.x;
-      const dy = dragY - this.anchor.y;
-      const dist = Math.min(Math.sqrt(dx * dx + dy * dy), MAX_PULL);
-      const angle = Math.atan2(dy, dx);
-      const px = this.anchor.x + Math.cos(angle) * dist;
-      const py = this.anchor.y + Math.sin(angle) * dist;
-      this.bird.setPosition(px, py);
-      this.drawAim(px, py);
+      this.movePull(dragX, dragY);
     });
 
     this.input.on("dragend", (pointer, obj) => {
+      if (controlMode !== "mouse") return;
       if (obj !== this.bird || !this.isDragging) return;
-      this.isDragging = false;
-      this.launchBird();
+      this.finishPull();
     });
 
     // ---- UI 텍스트 ----
@@ -166,6 +167,34 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(false);
 
     this.drawFork();
+  }
+
+  // 캠(주먹 쥐기) 모드에서 window.campullBegin()으로 호출된다.
+  // 마우스 dragstart와 동일하게, 시작 시점에는 새를 움직이지 않고
+  // 앵커 위치 그대로 둔다(그 다음 movePull이 상대 이동을 반영).
+  beginPull() {
+    if (this.isFlying || this.isGameOver || this.isDragging) return;
+    this.isDragging = true;
+  }
+
+  // 마우스 drag 이벤트와 캠 모드 양쪽에서 공용으로 쓰는 당기기 갱신 로직.
+  movePull(dragX, dragY) {
+    if (!this.isDragging) return;
+    const dx = dragX - this.anchor.x;
+    const dy = dragY - this.anchor.y;
+    const dist = Math.min(Math.sqrt(dx * dx + dy * dy), MAX_PULL);
+    const angle = Math.atan2(dy, dx);
+    const px = this.anchor.x + Math.cos(angle) * dist;
+    const py = this.anchor.y + Math.sin(angle) * dist;
+    this.bird.setPosition(px, py);
+    this.drawAim(px, py);
+  }
+
+  // 캠(손 펴기) 모드에서 window.campullEnd()로 호출된다.
+  finishPull() {
+    if (!this.isDragging) return;
+    this.isDragging = false;
+    this.launchBird();
   }
 
   drawFork() {
@@ -344,6 +373,53 @@ function setActiveMapButton(mapIndex) {
   document.getElementById("map2-btn").classList.toggle("active", mapIndex === 1);
 }
 
+// hand_control.js가 손 위치/제스처를 이 함수들로 알려준다.
+window.campullBegin = () => {
+  if (controlMode !== "cam") return;
+  const scene = getActiveScene();
+  if (scene) scene.beginPull();
+};
+window.campullMove = (x, y) => {
+  if (controlMode !== "cam") return;
+  const scene = getActiveScene();
+  if (scene) scene.movePull(x, y);
+};
+window.campullEnd = () => {
+  if (controlMode !== "cam") return;
+  const scene = getActiveScene();
+  if (scene) scene.finishPull();
+};
+// hand_control.js가 "주먹 쥔 순간부터의 상대 이동"을 계산할 수 있도록
+// 현재 새총 앵커의 캔버스 좌표를 알려준다.
+window.getSlingAnchor = () => {
+  const scene = getActiveScene();
+  return scene ? { x: scene.anchor.x, y: scene.anchor.y } : null;
+};
+
+function setMouseMode() {
+  controlMode = "mouse";
+  document.getElementById("mouse-mode-btn").classList.add("active");
+  document.getElementById("cam-mode-btn").classList.remove("active");
+  document.getElementById("cam-box").style.display = "none";
+  document.getElementById("note").textContent = "새(공)을 마우스로 당겨서 발사하세요";
+  if (window.stopCamControl) window.stopCamControl();
+}
+
+async function setCamMode() {
+  document.getElementById("cam-mode-btn").classList.add("active");
+  document.getElementById("mouse-mode-btn").classList.remove("active");
+  document.getElementById("cam-box").style.display = "flex";
+  document.getElementById("note").textContent = "카메라 앞에서 주먹을 쥐어 당기고, 펴서 발사하세요";
+
+  try {
+    if (window.startCamControl) await window.startCamControl();
+    controlMode = "cam";
+  } catch (err) {
+    alert("웹캠/손 인식을 시작할 수 없습니다: " + err.message);
+    setMouseMode();
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   createGame(0);
   setActiveMapButton(0);
@@ -358,5 +434,13 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("reset-btn").addEventListener("click", () => {
     createGame(currentMapIndex);
+  });
+  document.getElementById("mouse-mode-btn").addEventListener("click", () => {
+    if (controlMode === "mouse") return;
+    setMouseMode();
+  });
+  document.getElementById("cam-mode-btn").addEventListener("click", () => {
+    if (controlMode === "cam") return;
+    setCamMode();
   });
 });
