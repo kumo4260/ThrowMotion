@@ -302,7 +302,26 @@ class GameScene extends Phaser.Scene {
     if (this.pigsLeft <= 0) {
       this.isGameOver = true;
       this.showMessage("승리! 모든 돼지를 제거했습니다.");
+      this.reportResult("win");
     }
+  }
+
+  // 로그인 상태면 승/패 결과를 서버에 저장한다. 실패해도 게임 진행에는 영향 없음.
+  reportResult(result) {
+    const rec = window.MATCH_RECORD;
+    if (!rec) return;
+    fetch(rec.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": rec.csrfToken,
+      },
+      body: JSON.stringify({
+        result,
+        map_name: this.mapData.name,
+        shots_used: this.mapData.birdCount - Math.max(this.shotsLeft, 0),
+      }),
+    }).catch(() => {});
   }
 
   showMessage(text) {
@@ -331,6 +350,7 @@ class GameScene extends Phaser.Scene {
     if (!this.isGameOver && !this.isFlying && !this.isDragging && this.pigsLeft > 0 && this.shotsLeft <= 0) {
       this.isGameOver = true;
       this.showMessage("패배... 새가 모두 소진되었습니다.");
+      this.reportResult("lose");
     }
   }
 

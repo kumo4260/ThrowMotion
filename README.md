@@ -18,6 +18,7 @@ MediaPipe Hands 연동은 다음 단계 작업이며, `game/static/game/js/game.
 python -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+python manage.py migrate
 python manage.py runserver
 ```
 
@@ -52,3 +53,21 @@ slingshot_game/
   그대로 호출하면 됩니다.
 - 4주차 이후 백엔드 작업(회원가입/전적 API)은 `game` 앱 옆에 `accounts`,
   `matches` 같은 앱을 추가해 확장하면 기존 구조를 그대로 재사용할 수 있습니다.
+
+## 회원가입 / 로그인 / 전적 (accounts, matches 앱)
+
+- `accounts` 앱: `/accounts/signup/` 회원가입, `/accounts/login/` 로그인, `/accounts/logout/` 로그아웃(POST)
+  - Django 기본 `User` 모델과 인증 뷰를 그대로 사용합니다.
+- `matches` 앱: 유저별 승/패 기록을 저장하는 `Match` 모델
+  - `POST /matches/record/` : `{"result": "win"|"lose", "map_name": "...", "shots_used": 3}` 저장 (로그인 필요, CSRF 토큰 필요)
+  - `GET /matches/summary/` : 내 전적 집계 JSON `{"total", "wins", "losses"}`
+  - `GET /matches/` : 내 전적 페이지
+- 로그인한 상태로 게임을 하면 승리/패배 시 결과가 자동으로 저장됩니다. 로그인하지 않아도 게임은 그대로 할 수 있습니다.
+
+테스트 실행:
+
+```bash
+python manage.py test
+```
+
+배포 환경에서도 DB 테이블이 필요하므로 빌드 단계에 `python manage.py migrate`를 추가해야 합니다.

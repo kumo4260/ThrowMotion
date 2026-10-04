@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}새총 대전{% endblock %}</title>
+<style>
+  body {
+    margin: 0;
+    background: #1b1f27;
+    color: #eee;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  }
+  main {
+    max-width: 420px;
+    margin: 48px auto;
+    padding: 24px;
+    background: #12151b;
+    border: 1px solid #2c313c;
+    border-radius: 8px;
+  }
+  h1 { font-size: 20px; color: #ffd76a; margin-top: 0; }
+  a { color: #ffb020; }
+  label { display: block; margin-top: 12px; font-size: 13px; }
+  input { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 4px; }
+  .helptext, .errorlist { font-size: 12px; color: #9aa3b2; }
+  .errorlist { color: #ff7b7b; }
+  button {
+    margin-top: 16px;
+    background: #ffb020;
+    color: #1b1f27;
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px; border-bottom: 1px solid #2c313c; text-align: left; }
+</style>
+</head>
+<body>
+<main>
+  {% block content %}{% endblock %}
+  <p><a href="{% url 'index' %}">게임으로 돌아가기</a></p>
+</main>
+</body>
+</html>
