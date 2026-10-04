@@ -6,13 +6,25 @@ DATABASES, INSTALLED_APPS 의 'rest_framework' 등을 확장
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+from django.core.exceptions import ImproperlyConfigured
 
-SECRET_KEY = "skeh-xmdnlsxpdlf-chwjfwjd-althsu-duwkclsrn"
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 로컬에서 `python manage.py runserver`로 테스트할 때는
 # DJANGO_DEBUG=1 환경변수를 설정하면 DEBUG가 켜집니다. (배포 환경은 기본값 False 유지)
 DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
+
+# SECRET_KEY는 DJANGO_SECRET_KEY 환경변수에서 읽습니다.
+# DEBUG(로컬 개발)일 때만 아래 개발용 키로 대체하고, 배포 환경에서 없으면 바로 실패합니다.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-dev-only"
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY 환경변수가 설정되지 않았습니다. "
+            "로컬 개발이라면 DJANGO_DEBUG=1 을 설정하세요."
+        )
 
 ALLOWED_HOSTS = ["throwmotion.onrender.com", "127.0.0.1", "localhost"]
 
