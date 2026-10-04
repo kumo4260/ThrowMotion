@@ -18,10 +18,29 @@ MediaPipe Hands 연동은 다음 단계 작업이며, `game/static/game/js/game.
 python -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+export DJANGO_DEBUG=1      # Windows(PowerShell): $env:DJANGO_DEBUG="1"
 python manage.py runserver
 ```
 
 브라우저에서 http://127.0.0.1:8000 접속.
+
+`DJANGO_DEBUG=1` 이 설정되어 있으면 `DJANGO_SECRET_KEY` 없이도 개발용 키로 실행됩니다.
+설정하지 않으면 `DJANGO_SECRET_KEY` 가 필요하며, 없으면 서버가 시작되지 않습니다.
+
+## 배포 (Render)
+
+Render 서비스의 **Environment** 에 아래 환경변수를 설정합니다.
+
+| 변수 | 값 |
+| --- | --- |
+| `DJANGO_SECRET_KEY` | 새로 생성한 임의의 긴 문자열 (아래 명령으로 생성) |
+| `DJANGO_DEBUG` | 설정하지 않음 (배포 환경은 DEBUG 꺼짐) |
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+시크릿 키는 절대 코드나 저장소에 커밋하지 마세요.
 
 ## 조작 방법
 
