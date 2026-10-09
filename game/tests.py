@@ -48,7 +48,7 @@ class FlowTests(TestCase):
 
     def test_login_then_map_select_then_play(self):
         res = self.client.post(reverse("login"), {"username": "kumo", "password": PASSWORD})
-        self.assertRedirects(res, reverse("map_select"))
+        self.assertRedirects(res, reverse("mode_select"))
 
         res = self.client.get(reverse("map_select"))
         self.assertEqual(res.status_code, 200)
@@ -59,6 +59,15 @@ class FlowTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, 'id="map-data"')
         self.assertContains(res, reverse("matches:record"))
+
+    def test_mode_select_offers_solo_and_multiplayer(self):
+        res = self.client.get(reverse("mode_select"))
+        self.assertRedirects(res, f"{reverse('login')}?next={reverse('mode_select')}")
+
+        self.client.login(username="kumo", password=PASSWORD)
+        res = self.client.get(reverse("mode_select"))
+        self.assertContains(res, f'href="{reverse("map_select")}"')
+        self.assertContains(res, f'href="{reverse("battle:lobby")}"')
 
     def test_play_embeds_selected_map(self):
         self.client.login(username="kumo", password=PASSWORD)

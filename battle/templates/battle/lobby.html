@@ -1,0 +1,69 @@
+{% extends "game/base.html" %}
+{% block title %}멀티플레이 로비 - 새총 대전{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block extra_style %}
+  .lobby { max-width: 640px; margin: 40px auto; }
+  .panel { background: #12151b; border: 1px solid #2c313c; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; }
+  .panel h2 { font-size: 17px; color: #ffd76a; margin: 0 0 8px; }
+  .panel p { color: #9aa3b2; font-size: 14px; line-height: 1.6; margin: 0; }
+  .join-form { display: flex; gap: 8px; margin-top: 12px; }
+  .join-form input { flex: 1; margin: 0; text-transform: uppercase; letter-spacing: 3px; font-size: 16px; }
+  .join-form button { margin: 0; }
+  .room-list { list-style: none; padding: 0; margin: 12px 0 0; }
+  .room-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #2c313c; }
+  .room-list .code { font-family: monospace; font-size: 16px; color: #ffd76a; letter-spacing: 2px; }
+  .room-list .btn { margin: 0 0 0 auto; padding: 4px 14px; }
+  .error { background: #3a1f22; border: 1px solid #7a3a3f; color: #ffb3b3; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; }
+  .rules li { color: #c9d1dd; font-size: 14px; line-height: 1.7; }
+{% endblock %}
+{% block content %}
+<div class="lobby">
+  <h1>1대1 요새전</h1>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  <div class="panel">
+    <h2>방 만들기</h2>
+    <p>방을 만들면 5자리 방 코드가 생깁니다. 친구에게 코드를 알려 주세요.</p>
+    <form method="post" action="{% url 'battle:create' %}">
+      {% csrf_token %}
+      <button type="submit" id="create-room-btn">방 만들기</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>코드로 참가하기</h2>
+    <form class="join-form" method="get" action="{% url 'battle:join' %}">
+      <input name="code" maxlength="5" placeholder="예: AB3CD" autocomplete="off" required>
+      <button type="submit">참가</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>상대를 기다리는 방</h2>
+    {% if rooms %}
+      <ul class="room-list">
+        {% for r in rooms %}
+          <li>
+            <span class="code">{{ r.code }}</span>
+            <span>{{ r.owner }}님의 방</span>
+            <a class="btn" href="{% url 'battle:room' r.code %}">참가</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>지금은 기다리는 방이 없습니다. 직접 방을 만들어 보세요.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>규칙</h2>
+    <ul class="rules">
+      <li>왼쪽이 1P(방장), 오른쪽이 2P입니다. 1P부터 한 발씩 번갈아 쏩니다.</li>
+      <li>상대 요새의 돼지 3마리를 먼저 모두 쓰러뜨리면 승리합니다.</li>
+      <li>둘 다 새 6마리를 다 쓰면 돼지가 더 많이 남은 쪽이 이깁니다.</li>
+      <li>게임 중에 나가서 20초 안에 돌아오지 않으면 기권패입니다.</li>
+      <li>마우스 모드와 캠(손 제스처) 모드 모두 쓸 수 있습니다.</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

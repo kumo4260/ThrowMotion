@@ -17,7 +17,7 @@
   <p>새총을 당겨 새를 날리고, 구조물 속에 숨은 돼지를 모두 쓰러뜨리세요.<br>
      마우스로 당기거나, 웹캠 앞에서 주먹을 쥐었다 펴서 쏠 수 있습니다.</p>
   {% if user.is_authenticated %}
-    <a class="btn" href="{% url 'map_select' %}">게임 시작</a>
+    <a class="btn" href="{% url 'mode_select' %}">게임 시작</a>
     <a class="btn secondary" href="{% url 'matches:history' %}">내 전적</a>
   {% else %}
     <a class="btn" href="{% url 'login' %}">로그인하고 시작하기</a>
@@ -32,6 +32,10 @@
   <div class="feature">
     <h2>마우스 / 캠 모드</h2>
     <p>마우스로 새를 끌어 당기거나, 캠 모드에서 주먹을 쥐어 당기고 손을 펴서 발사하세요.</p>
+  </div>
+  <div class="feature">
+    <h2>1대1 요새전</h2>
+    <p>맵 양 끝에 각자의 요새를 두고 친구와 번갈아 쏩니다. 상대 돼지를 먼저 모두 쓰러뜨리면 승리!</p>
   </div>
   <div class="feature">
     <h2>내 전적 기록</h2>

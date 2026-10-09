@@ -14,6 +14,12 @@ def home(request):
     return render(request, "game/home.html")
 
 
+@login_required
+def mode_select(request):
+    """로그인 직후 화면: 솔로 플레이(맵 선택)와 1대1 멀티플레이(요새전 로비) 중에서 고른다."""
+    return render(request, "game/mode_select.html")
+
+
 def _card(map_data, wins_by_name):
     """맵 선택 카드에 필요한 값(미리보기 도형, 돼지 수, 클리어 횟수)을 만든다."""
     preview = []

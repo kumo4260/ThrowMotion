@@ -17,7 +17,7 @@ class SignupTests(TestCase):
             reverse("signup"),
             {"username": "kumo", "password1": PASSWORD, "password2": PASSWORD},
         )
-        self.assertRedirects(res, reverse("map_select"))
+        self.assertRedirects(res, reverse("mode_select"))
         self.assertTrue(User.objects.filter(username="kumo").exists())
         self.assertIn("_auth_user_id", self.client.session)
 
@@ -44,7 +44,7 @@ class LoginLogoutTests(TestCase):
 
     def test_login_with_valid_credentials(self):
         res = self.client.post(reverse("login"), {"username": "kumo", "password": PASSWORD})
-        self.assertRedirects(res, reverse("map_select"))
+        self.assertRedirects(res, reverse("mode_select"))
         self.assertIn("_auth_user_id", self.client.session)
 
     def test_login_with_wrong_password(self):
@@ -71,4 +71,4 @@ class NavTests(TestCase):
         self.client.login(username="kumo", password=PASSWORD)
         res = self.client.get(reverse("home"))
         self.assertContains(res, "kumo")
-        self.assertContains(res, reverse("map_select"))
+        self.assertContains(res, reverse("mode_select"))
