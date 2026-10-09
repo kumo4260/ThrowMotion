@@ -1,0 +1,25 @@
+{% extends "game/base.html" %}
+{% block title %}내 전적 - 새총 대전{% endblock %}
+{% block content %}
+<h1>{{ user.username }}님의 전적</h1>
+<p>총 {{ summary.total }}판 · 승리 {{ summary.wins }} · 패배 {{ summary.losses }}</p>
+{% if matches %}
+<table>
+  <thead>
+    <tr><th>일시</th><th>맵</th><th>결과</th><th>사용한 새</th></tr>
+  </thead>
+  <tbody>
+  {% for m in matches %}
+    <tr>
+      <td>{{ m.played_at|date:"Y-m-d H:i" }}</td>
+      <td>{{ m.map_name|default:"-" }}</td>
+      <td>{{ m.get_result_display }}</td>
+      <td>{{ m.shots_used|default_if_none:"-" }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>아직 기록된 경기가 없습니다.</p>
+{% endif %}
+{% endblock %}

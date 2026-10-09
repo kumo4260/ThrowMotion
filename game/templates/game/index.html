@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>슬링샷 대전 - 임시 테스트</title>
+<title>{{ map.name }} - 새총 대전</title>
 <style>
   html, body {
     margin: 0;
@@ -26,8 +26,18 @@
     font-size: 16px;
     margin: 0;
     margin-right: 12px;
-    color: #ffd76a;
   }
+  #ui-bar h1 a { color: #ffd76a; text-decoration: none; }
+  #ui-bar a.nav-btn {
+    color: #eee;
+    text-decoration: none;
+    border: 1px solid #444b58;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 13px;
+  }
+  #ui-bar a.nav-btn:hover { background: #3a4152; }
+  #map-title { font-weight: bold; color: #ffd76a; font-size: 14px; }
   #ui-bar button {
     background: #2c313c;
     color: #eee;
@@ -91,6 +101,14 @@
     height: 100%;
     transform: scaleX(-1); /* 거울 모드로 자연스럽게 보이도록 좌우 반전 */
   }
+  #account-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  #account-box a { color: #ffd76a; }
+  #account-box form { margin: 0; }
   #cam-status {
     font-size: 12px;
     color: #9aa3b2;
@@ -101,13 +119,25 @@
 <body>
 
 <div id="ui-bar">
-  <h1>새총 대전</h1>
-  <button id="map1-btn">맵 1</button>
-  <button id="map2-btn">맵 2</button>
+  <h1><a href="{% url 'home' %}">새총 대전</a></h1>
+  <a class="nav-btn" href="{% url 'map_select' %}">← 맵 선택</a>
+  <span id="map-title">{{ map.name }}</span>
   <button id="reset-btn">다시하기</button>
   <button id="mouse-mode-btn" class="mode-btn active">마우스 모드</button>
   <button id="cam-mode-btn" class="mode-btn">캠 모드</button>
   <span id="note">새(공)을 마우스로 당겨서 발사하세요</span>
+  <span id="account-box">
+    {% if user.is_authenticated %}
+      <a href="{% url 'matches:history' %}">{{ user.username }} 전적</a>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit">로그아웃</button>
+      </form>
+    {% else %}
+      <a href="{% url 'login' %}">로그인</a>
+      <a href="{% url 'signup' %}">회원가입</a>
+    {% endif %}
+  </span>
 </div>
 
 <div id="game-container">
@@ -121,7 +151,14 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
-<script src="{% static 'game/js/maps.js' %}"></script>
+{{ map|json_script:"map-data" }}
+<script>
+  // 로그인한 경우에만 게임 결과를 서버(matches 앱)에 저장한다.
+  window.MATCH_RECORD = {% if user.is_authenticated %}{
+    url: "{% url 'matches:record' %}",
+    csrfToken: "{{ csrf_token }}",
+  }{% else %}null{% endif %};
+</script>
 <script src="{% static 'game/js/game.js' %}"></script>
 <script type="module" src="{% static 'game/js/hand_control.js' %}"></script>
 

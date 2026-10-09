@@ -1,0 +1,41 @@
+{% extends "game/base.html" %}
+{% block title %}새총 대전{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block extra_style %}
+  .hero { text-align: center; padding: 56px 16px 32px; }
+  .hero h1 { font-size: 44px; margin-bottom: 8px; }
+  .hero p { color: #c9d1dd; font-size: 16px; line-height: 1.6; }
+  .hero .btn { margin: 20px 6px 0; padding: 12px 28px; font-size: 16px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0 48px; }
+  .feature { background: #12151b; border: 1px solid #2c313c; border-radius: 8px; padding: 16px; }
+  .feature h2 { font-size: 16px; color: #ffd76a; margin: 0 0 8px; }
+  .feature p { margin: 0; color: #9aa3b2; font-size: 14px; line-height: 1.5; }
+{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>새총 대전</h1>
+  <p>새총을 당겨 새를 날리고, 구조물 속에 숨은 돼지를 모두 쓰러뜨리세요.<br>
+     마우스로 당기거나, 웹캠 앞에서 주먹을 쥐었다 펴서 쏠 수 있습니다.</p>
+  {% if user.is_authenticated %}
+    <a class="btn" href="{% url 'map_select' %}">게임 시작</a>
+    <a class="btn secondary" href="{% url 'matches:history' %}">내 전적</a>
+  {% else %}
+    <a class="btn" href="{% url 'login' %}">로그인하고 시작하기</a>
+    <a class="btn secondary" href="{% url 'signup' %}">회원가입</a>
+  {% endif %}
+</section>
+<section class="features">
+  <div class="feature">
+    <h2>넓어진 대형 맵 4종</h2>
+    <p>연습 맵보다 3배 넓은 맵에서 카메라가 새를 따라갑니다. 방향키나 마우스 휠로 맵을 둘러볼 수 있어요.</p>
+  </div>
+  <div class="feature">
+    <h2>마우스 / 캠 모드</h2>
+    <p>마우스로 새를 끌어 당기거나, 캠 모드에서 주먹을 쥐어 당기고 손을 펴서 발사하세요.</p>
+  </div>
+  <div class="feature">
+    <h2>내 전적 기록</h2>
+    <p>로그인하면 판마다 승패와 사용한 새 수가 저장됩니다.</p>
+  </div>
+</section>
+{% endblock %}

@@ -3,17 +3,27 @@
 // 모두 지원한다. 실제 당기기/발사 로직은 beginPull/movePull/finishPull에만
 // 있고, 마우스 이벤트와 hand_control.js(window.campullBegin/Move/End)가
 // 둘 다 이 메서드들을 호출한다.
+//
+// 맵 데이터는 Django(game/maps.py)가 템플릿에 json_script("map-data")로
+// 넣어준다. 맵(월드)이 화면(VIEW_W x VIEW_H)보다 크면 카메라가 날아가는
+// 새를 따라가고, 방향키/마우스 휠로 맵을 둘러볼 수 있다.
 // ------------------------------------------------------------------
 
-const GAME_W = 1200;
-const GAME_H = 700;
+const VIEW_W = 1200; // 화면(캔버스) 크기. hand_control.js도 이 크기를 기준으로 한다.
+const VIEW_H = 700;
 const GROUND_HEIGHT = 40;
 
 const MAX_PULL = 160;       // 새총 최대 당김 거리(px) - 더 크게 당길 수 있음
-const MAX_LAUNCH_SPEED = 1450; // 발사 속도 상한 (기존 620 -> 대폭 강화)
 const DAMAGE_SPEED_THRESHOLD = 90; // 이 속도 이상으로 충돌해야 블록에 데미지
+const SLING_SCREEN_X = 220; // 카메라가 새총으로 돌아왔을 때 새총이 놓이는 화면 x
+const SCROLL_SPEED = 900;   // 방향키로 맵을 둘러보는 속도(px/s)
 
-let currentMapIndex = 0;
+const MAP = JSON.parse(document.getElementById("map-data").textContent);
+const WORLD_W = MAP.width;
+const WORLD_H = MAP.height;
+const GROUND_Y = WORLD_H - GROUND_HEIGHT;
+const MAX_LAUNCH_SPEED = MAP.maxLaunchSpeed; // 큰 맵일수록 멀리 날아가도록 맵마다 지정
+
 let gameInstance = null;
 let controlMode = "mouse"; // "mouse" | "cam"
 
@@ -24,10 +34,6 @@ function getActiveScene() {
 class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
-  }
-
-  init(data) {
-    this.mapIndex = data.mapIndex || 0;
   }
 
   preload() {
@@ -42,22 +48,16 @@ class GameScene extends Phaser.Scene {
     g.strokeCircle(18, 18, 18);
     g.generateTexture("bird", 36, 36);
 
-    // 블록(나무/돌)과 돼지는 맵마다 크기가 달라서 고정 텍스처 대신
+    // 블록(나무/돌)과 돼지, 바닥은 맵마다 크기가 달라서 고정 텍스처 대신
     // Phaser Shape(Rectangle/Circle) + 물리 바디로 만든다.
     // (텍스처를 setDisplaySize로 늘리면 물리 바디 크기가 스케일과
     //  곱해져 이중으로 커지는 문제가 있어 이 방식으로 피한다.)
-
-    // 바닥
-    g.clear();
-    g.fillStyle(0x4a3a2c, 1);
-    g.fillRect(0, 0, GAME_W, GROUND_HEIGHT);
-    g.generateTexture("ground", GAME_W, GROUND_HEIGHT);
 
     g.destroy();
   }
 
   create() {
-    const mapData = MAPS[this.mapIndex];
+    const mapData = MAP;
     this.mapData = mapData;
     this.isGameOver = false;
     this.isDragging = false;
@@ -65,25 +65,38 @@ class GameScene extends Phaser.Scene {
     this.shotsLeft = mapData.birdCount;
     this.settleTimer = 0;
 
-    this.physics.world.setBounds(0, 0, GAME_W, GAME_H);
+    this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
     this.physics.world.gravity.y = 950;
 
-    // ---- 배경 ----
-    this.cameras.main.setBackgroundColor("#87b8d6");
-    this.add.rectangle(GAME_W / 2, GAME_H - GROUND_HEIGHT / 2, GAME_W, GROUND_HEIGHT, 0x4a3a2c);
+    // ---- 카메라: 화면보다 큰 맵은 스크롤 ----
+    const cam = this.cameras.main;
+    cam.setBounds(0, 0, WORLD_W, WORLD_H);
+    cam.setBackgroundColor("#87b8d6");
 
-    const ground = this.physics.add.staticImage(GAME_W / 2, GAME_H - GROUND_HEIGHT / 2, "ground");
+    // ---- 배경 ----
+    this.drawBackground();
+
+    // 바닥: 맵 너비 전체를 덮는 정적 물리 바디
+    const ground = this.add.rectangle(WORLD_W / 2, WORLD_H - GROUND_HEIGHT / 2, WORLD_W, GROUND_HEIGHT, 0x4a3a2c);
+    this.physics.add.existing(ground, true);
 
     // ---- 새총 기둥(비주얼) ----
     this.anchor = mapData.slingAnchor;
-    this.add.rectangle(this.anchor.x, GAME_H - GROUND_HEIGHT, 10, GAME_H - GROUND_HEIGHT - this.anchor.y + 10, 0x5b3a20);
+    this.add.rectangle(this.anchor.x, (GROUND_Y + this.anchor.y + 10) / 2, 10, GROUND_Y - this.anchor.y + 10, 0x5b3a20);
     this.forkGfx = this.add.graphics();
 
     // ---- 블록 / 돼지 그룹 ----
     // Shape 게임오브젝트(Rectangle/Circle)를 맵 데이터의 실제 크기로 바로 만들어서
     // 물리 바디 크기가 스케일과 곱해지는 문제 없이 정확히 맞도록 한다.
     this.blocksGroup = this.physics.add.group();
+    // 'rock'은 움직이지도 부서지지도 않는 지형(고원, 벽)
+    this.rocksGroup = this.physics.add.staticGroup();
     mapData.blocks.forEach((b) => {
+      if (b.type === "rock") {
+        const rock = this.add.rectangle(b.x, b.y, b.w, b.h, 0x5b5148).setStrokeStyle(2, 0x3a332c);
+        this.rocksGroup.add(rock);
+        return;
+      }
       let obj;
       if (b.type === "pig") {
         obj = this.add.circle(b.x, b.y, b.w / 2, 0x63b04a).setStrokeStyle(2, 0x2f5e20);
@@ -110,6 +123,7 @@ class GameScene extends Phaser.Scene {
     this.pigsLeft = mapData.blocks.filter((b) => b.type === "pig").length;
 
     this.physics.add.collider(this.blocksGroup, ground);
+    this.physics.add.collider(this.blocksGroup, this.rocksGroup);
     this.physics.add.collider(this.blocksGroup, this.blocksGroup);
 
     // ---- 새(투사체) ----
@@ -120,6 +134,7 @@ class GameScene extends Phaser.Scene {
     this.bird.body.moves = false;
 
     this.physics.add.collider(this.bird, ground);
+    this.physics.add.collider(this.bird, this.rocksGroup);
     this.physics.add.collider(this.bird, this.blocksGroup, this.onBirdHitBlock, null, this);
 
     // ---- 조준선(가이드) ----
@@ -148,25 +163,112 @@ class GameScene extends Phaser.Scene {
       this.finishPull();
     });
 
-    // ---- UI 텍스트 ----
+    // ---- 맵 둘러보기: 방향키 / 마우스 휠 ----
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.input.keyboard.on("keydown-SPACE", () => this.returnCameraToSling());
+    this.input.on("wheel", (pointer, objs, dx, dy) => {
+      this.scrollCameraBy(dx + dy);
+    });
+
+    // ---- UI 텍스트 (카메라가 움직여도 화면에 고정) ----
     this.infoText = this.add.text(16, 16, "", {
       fontSize: "16px",
       fontFamily: "Malgun Gothic, sans-serif",
       color: "#ffffff",
       backgroundColor: "#00000055",
       padding: { x: 8, y: 4 },
-    });
+    }).setScrollFactor(0).setDepth(10);
     this.updateInfoText();
 
-    this.messageText = this.add.text(GAME_W / 2, GAME_H / 2, "", {
+    if (WORLD_W > VIEW_W || WORLD_H > VIEW_H) {
+      this.add.text(VIEW_W - 16, 16, "← → 방향키 / 휠: 맵 둘러보기   스페이스: 새총으로", {
+        fontSize: "13px",
+        fontFamily: "Malgun Gothic, sans-serif",
+        color: "#ffffff",
+        backgroundColor: "#00000055",
+        padding: { x: 8, y: 4 },
+      }).setOrigin(1, 0).setScrollFactor(0).setDepth(10);
+    }
+
+    this.messageText = this.add.text(VIEW_W / 2, VIEW_H / 2, "", {
       fontSize: "40px",
       fontFamily: "Malgun Gothic, sans-serif",
       color: "#ffd76a",
       backgroundColor: "#00000099",
       padding: { x: 20, y: 12 },
-    }).setOrigin(0.5).setVisible(false);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(10).setVisible(false);
 
     this.drawFork();
+    this.playIntroPan();
+  }
+
+  // 하늘 위 구름/언덕(시차 스크롤)과 바닥의 거리 눈금. 넓은 맵에서
+  // 카메라가 움직이고 있다는 느낌과 거리 감각을 준다.
+  drawBackground() {
+    const far = this.add.graphics().setScrollFactor(0.3, 1);
+    far.fillStyle(0x9cc7a0, 1);
+    for (let x = -200; x < WORLD_W; x += 520) {
+      far.fillEllipse(x + 260, GROUND_Y + 20, 700, 260);
+    }
+
+    const clouds = this.add.graphics().setScrollFactor(0.15, 0.6);
+    clouds.fillStyle(0xffffff, 0.75);
+    for (let i = 0, x = 120; x < WORLD_W; i++, x += 430) {
+      const y = 70 + ((i * 97) % 160);
+      clouds.fillEllipse(x, y, 140, 44);
+      clouds.fillEllipse(x + 50, y - 14, 90, 40);
+    }
+
+    if (WORLD_W > VIEW_W) {
+      for (let x = 500; x < WORLD_W; x += 500) {
+        this.add.text(x, GROUND_Y + 12, `${x}`, {
+          fontSize: "12px",
+          fontFamily: "sans-serif",
+          color: "#d9c3a5",
+        }).setOrigin(0.5, 0).setDepth(1);
+      }
+    }
+  }
+
+  // 새총이 화면 왼쪽(SLING_SCREEN_X)에 오도록 카메라가 맞춰야 할 중심 좌표
+  slingCameraCenter() {
+    return {
+      x: this.anchor.x - SLING_SCREEN_X + VIEW_W / 2,
+      y: WORLD_H - VIEW_H / 2, // 바닥이 화면 맨 아래에 오도록
+    };
+  }
+
+  // 시작할 때 목표물 쪽을 먼저 보여주고 새총으로 돌아온다.
+  playIntroPan() {
+    const cam = this.cameras.main;
+    const home = this.slingCameraCenter();
+    if (WORLD_W <= VIEW_W) {
+      cam.centerOn(home.x, home.y);
+      return;
+    }
+    cam.centerOn(WORLD_W, home.y);
+    this.time.delayedCall(700, () => {
+      if (!this.isDragging && !this.isFlying) cam.pan(home.x, home.y, 1600, "Sine.easeInOut");
+    });
+  }
+
+  returnCameraToSling(duration = 500) {
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    const home = this.slingCameraCenter();
+    if (duration <= 0) {
+      cam.panEffect.reset();
+      cam.centerOn(home.x, home.y);
+    } else {
+      cam.pan(home.x, home.y, duration, "Sine.easeInOut", true);
+    }
+  }
+
+  scrollCameraBy(dx) {
+    if (this.isFlying || this.isDragging) return;
+    const cam = this.cameras.main;
+    cam.panEffect.reset();
+    cam.scrollX += dx;
   }
 
   // 캠(주먹 쥐기) 모드에서 window.campullBegin()으로 호출된다.
@@ -175,6 +277,8 @@ class GameScene extends Phaser.Scene {
   beginPull() {
     if (this.isFlying || this.isGameOver || this.isDragging) return;
     this.isDragging = true;
+    // 맵을 둘러보던 중이어도 새총이 보이도록 바로 돌아온다.
+    this.returnCameraToSling(0);
   }
 
   // 마우스 drag 이벤트와 캠 모드 양쪽에서 공용으로 쓰는 당기기 갱신 로직.
@@ -228,7 +332,7 @@ class GameScene extends Phaser.Scene {
       const t = i * 0.09;
       const x = this.anchor.x + vx * t;
       const y = this.anchor.y + vy * t + 0.5 * gravity * t * t;
-      if (y > GAME_H - GROUND_HEIGHT) break;
+      if (y > GROUND_Y) break;
       this.trajectoryDots.fillCircle(x, y, 3);
     }
   }
@@ -255,6 +359,9 @@ class GameScene extends Phaser.Scene {
     this.bird.setVelocity(Math.cos(angle) * power, Math.sin(angle) * power);
 
     this.isFlying = true;
+    this.flightTime = 0;
+    this.cameras.main.panEffect.reset();
+    this.cameras.main.startFollow(this.bird, true, 0.12, 0.12);
     this.shotsLeft -= 1;
     this.settleTimer = 0;
     this.updateInfoText();
@@ -302,18 +409,48 @@ class GameScene extends Phaser.Scene {
     if (this.pigsLeft <= 0) {
       this.isGameOver = true;
       this.showMessage("승리! 모든 돼지를 제거했습니다.");
+      this.reportResult("win");
     }
   }
 
+  // 로그인 상태면 승/패 결과를 서버에 저장한다. 실패해도 게임 진행에는 영향 없음.
+  reportResult(result) {
+    const rec = window.MATCH_RECORD;
+    if (!rec) return;
+    fetch(rec.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": rec.csrfToken,
+      },
+      body: JSON.stringify({
+        result,
+        map_name: this.mapData.name,
+        shots_used: this.mapData.birdCount - Math.max(this.shotsLeft, 0),
+      }),
+    }).catch(() => {});
+  }
+
   showMessage(text) {
-    this.messageText.setText(text + "\n(다시하기 버튼을 눌러주세요)");
+    this.messageText.setText(text + "\n(다시하기 또는 맵 선택을 눌러주세요)");
     this.messageText.setVisible(true);
   }
 
   update(time, delta) {
+    if (!this.isFlying && !this.isDragging) {
+      if (this.cursors.left.isDown) this.scrollCameraBy((-SCROLL_SPEED * delta) / 1000);
+      if (this.cursors.right.isDown) this.scrollCameraBy((SCROLL_SPEED * delta) / 1000);
+    }
+
     if (this.isFlying) {
       const b = this.bird.body;
-      const offScreen = this.bird.x > GAME_W + 40 || this.bird.x < -40;
+      this.flightTime += delta;
+      // 바닥/블록 위를 구르는 새는 마찰로 멈추게 한다. (넓은 맵에서는
+      // 마찰이 없으면 화면 끝까지 한참 굴러가서 다음 새를 쏠 수 없다)
+      if (b.blocked.down || b.touching.down) {
+        b.velocity.x *= Math.pow(0.05, delta / 1000);
+      }
+      const offScreen = this.bird.x > WORLD_W + 40 || this.bird.x < -40 || this.bird.y > WORLD_H + 100;
       const nearlyStopped = Math.abs(b.velocity.x) < 8 && Math.abs(b.velocity.y) < 8 && b.y > 0;
 
       if (offScreen || nearlyStopped) {
@@ -322,15 +459,21 @@ class GameScene extends Phaser.Scene {
         this.settleTimer = 0;
       }
 
-      if (offScreen || this.settleTimer > 550) {
+      // 블록 위에서 계속 흔들리는 경우 등을 대비해 한 발은 최대 12초로 제한
+      if (offScreen || this.settleTimer > 550 || this.flightTime > 12000) {
         this.isFlying = false;
         this.resetBirdToSling();
+        // 결과를 잠깐 보여준 뒤 새총으로 카메라를 돌린다.
+        this.time.delayedCall(500, () => {
+          if (!this.isFlying && !this.isDragging) this.returnCameraToSling(700);
+        });
       }
     }
 
     if (!this.isGameOver && !this.isFlying && !this.isDragging && this.pigsLeft > 0 && this.shotsLeft <= 0) {
       this.isGameOver = true;
       this.showMessage("패배... 새가 모두 소진되었습니다.");
+      this.reportResult("lose");
     }
   }
 
@@ -344,8 +487,7 @@ class GameScene extends Phaser.Scene {
   }
 }
 
-function createGame(mapIndex) {
-  currentMapIndex = mapIndex;
+function createGame() {
   if (gameInstance) {
     gameInstance.destroy(true);
     gameInstance = null;
@@ -353,24 +495,19 @@ function createGame(mapIndex) {
 
   const config = {
     type: Phaser.AUTO,
-    width: GAME_W,
-    height: GAME_H,
+    width: VIEW_W,
+    height: VIEW_H,
     parent: "game-container",
     backgroundColor: "#87b8d6",
     physics: {
       default: "arcade",
-      arcade: { gravity: { y: 950 }, debug: false },
+      // fps 120: 빠른 새가 얇은 블록을 뚫고 지나가지 않도록 물리를 더 촘촘히 계산
+      arcade: { gravity: { y: 950 }, debug: false, fps: 120 },
     },
     scene: [GameScene],
   };
 
   gameInstance = new Phaser.Game(config);
-  gameInstance.scene.start("GameScene", { mapIndex });
-}
-
-function setActiveMapButton(mapIndex) {
-  document.getElementById("map1-btn").classList.toggle("active", mapIndex === 0);
-  document.getElementById("map2-btn").classList.toggle("active", mapIndex === 1);
 }
 
 // hand_control.js가 손 위치/제스처를 이 함수들로 알려준다.
@@ -421,19 +558,10 @@ async function setCamMode() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  createGame(0);
-  setActiveMapButton(0);
+  createGame();
 
-  document.getElementById("map1-btn").addEventListener("click", () => {
-    createGame(0);
-    setActiveMapButton(0);
-  });
-  document.getElementById("map2-btn").addEventListener("click", () => {
-    createGame(1);
-    setActiveMapButton(1);
-  });
   document.getElementById("reset-btn").addEventListener("click", () => {
-    createGame(currentMapIndex);
+    createGame();
   });
   document.getElementById("mouse-mode-btn").addEventListener("click", () => {
     if (controlMode === "mouse") return;
