@@ -105,6 +105,7 @@ Render Web Service로 배포되어 있습니다.
 | 항목 | 값 |
 | --- | --- |
 | Build Command | `pip install -r requirements.txt && python manage.py collectstatic --noinput` |
+| Python 버전 | `.python-version` 파일로 3.12 고정 (Django 4.2가 공식 지원하는 마지막 버전) |
 | Start Command | `python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT slingshot_game.asgi:application` |
 
 - **멀티플레이(WebSocket) 때문에 Start Command를 gunicorn에서 daphne로 바꿔야 합니다.**
