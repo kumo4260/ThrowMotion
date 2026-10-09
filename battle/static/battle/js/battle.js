@@ -82,7 +82,15 @@ class BattleScene extends Phaser.Scene {
     this.blockWaitTime = 0;
     this.sendingSettle = false;
 
-    this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
+    // 물리 경계 = 양 끝 벽의 안쪽 면. 벽(정적 바디)만 있으면 블록 여러 개가 한꺼번에
+    // 밀려올 때 서로 밀어내다 벽을 뚫고 나갈 수 있어서, 경계로 한 번 더 막는다.
+    // 위/아래는 막지 않는다(높이 쏜 새는 화면 위로 나갔다가 돌아오고, 바닥은 따로 있다).
+    const walls = [...(MAP.walls || [])].sort((a, b) => a.x - b.x);
+    const innerL = walls.length ? walls[0].x + walls[0].w / 2 : 0;
+    const innerR = walls.length ? walls[walls.length - 1].x - walls[walls.length - 1].w / 2 : WORLD_W;
+    this.physics.world.setBounds(innerL, 0, innerR - innerL, WORLD_H, true, true, false, false);
+    this.innerL = innerL;
+    this.innerR = innerR;
     this.physics.world.gravity.y = 950;
 
     const cam = this.cameras.main;
@@ -121,11 +129,18 @@ class BattleScene extends Phaser.Scene {
 
     // ---- 지형(바위)과 블록 ----
     this.rocksGroup = this.physics.add.staticGroup();
+    // 맵 양 끝의 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다(바위와 같이 충돌).
+    (MAP.walls || []).forEach((w) => {
+      const wall = this.add.rectangle(w.x, w.y, w.w, w.h, 0x3b342d).setStrokeStyle(3, 0x241f1a).setDepth(1);
+      this.rocksGroup.add(wall);
+    });
     MAP.blocks.filter((b) => b.type === "rock").forEach((b) => {
       const rock = this.add.rectangle(b.x, b.y, b.w, b.h, 0x5b5148).setStrokeStyle(2, 0x3a332c);
       this.rocksGroup.add(rock);
     });
-    this.blocksGroup = this.physics.add.group();
+    // 블록도 물리 경계(벽 안쪽)를 넘지 못하게 한다. 그룹에 넣을 때 그룹 기본값이 바디에
+    // 덮어써지므로 개별 바디가 아니라 그룹 설정으로 켠다.
+    this.blocksGroup = this.physics.add.group({ collideWorldBounds: true });
     this.physics.add.collider(this.blocksGroup, ground);
     this.physics.add.collider(this.blocksGroup, this.rocksGroup);
     this.physics.add.collider(this.blocksGroup, this.blocksGroup);
@@ -139,6 +154,7 @@ class BattleScene extends Phaser.Scene {
     this.bird.body.setCircle(18);
     this.bird.body.setAllowGravity(false);
     this.bird.body.setBounce(0.35);
+    this.bird.body.setCollideWorldBounds(true);
     this.bird.body.moves = false;
     this.physics.add.collider(this.bird, ground);
     this.physics.add.collider(this.bird, this.rocksGroup);
@@ -319,7 +335,8 @@ class BattleScene extends Phaser.Scene {
     const dy = dragY - this.anchor.y;
     const dist = Math.min(Math.sqrt(dx * dx + dy * dy), MAX_PULL);
     const angle = Math.atan2(dy, dx);
-    const px = this.anchor.x + Math.cos(angle) * dist;
+    // 새총이 벽 가까이 있어도(연습 맵) 당긴 새가 벽 속으로 들어가지 않게 한다.
+    const px = Phaser.Math.Clamp(this.anchor.x + Math.cos(angle) * dist, this.innerL + 18, this.innerR - 18);
     const py = this.anchor.y + Math.sin(angle) * dist;
     this.bird.setPosition(px, py);
     this.drawAim(px, py);
@@ -605,6 +622,8 @@ function createGame() {
     width: VIEW_W,
     height: VIEW_H,
     parent: "game-container",
+    // 브라우저 창에 맞춰 비율을 유지한 채 최대한 크게 키운다(게임 좌표는 VIEW_W x VIEW_H 그대로).
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     backgroundColor: "#87b8d6",
     physics: {
       default: "arcade",

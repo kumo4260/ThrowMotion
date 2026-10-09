@@ -9,7 +9,7 @@
 블록의 "id"는 동기화할 때 같은 블록을 가리키는 번호다.
 """
 
-from game.maps import BIG_H, BIG_LAUNCH_SPEED, BIG_W, _B, _hut, _rock, _stone_tower
+from game.maps import BIG_H, BIG_LAUNCH_SPEED, BIG_W, _B, _hut, _rock, _stone_tower, walls
 
 
 def _left_fortress():
@@ -50,6 +50,7 @@ BATTLE_MAP = {
         "2": {"x": BIG_W - 900, "y": _B - 110},
     },
     "blocks": _build_blocks(),
+    "walls": walls(BIG_W, BIG_H),
 }
 
 

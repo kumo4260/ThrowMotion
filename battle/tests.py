@@ -37,6 +37,15 @@ class BattleMapTests(TestCase):
         s1, s2 = BATTLE_MAP["slings"]["1"], BATTLE_MAP["slings"]["2"]
         self.assertEqual(s1["x"] + s2["x"], BATTLE_MAP["width"])
 
+    def test_end_walls_are_mirrored_and_clear_of_blocks(self):
+        left, right = sorted(BATTLE_MAP["walls"], key=lambda w: w["x"])
+        self.assertEqual(left["x"] + right["x"], BATTLE_MAP["width"])
+        self.assertEqual((left["y"], left["w"], left["h"]), (right["y"], right["w"], right["h"]))
+        self.assertEqual(left["x"] - left["w"] / 2, 0)
+        for b in BATTLE_MAP["blocks"]:
+            self.assertGreaterEqual(b["x"] - b["w"] / 2, left["w"], b)
+            self.assertLessEqual(b["x"] + b["w"] / 2, BATTLE_MAP["width"] - right["w"], b)
+
     def test_block_ids_unique_and_inside_world(self):
         ids = [b["id"] for b in BATTLE_MAP["blocks"]]
         self.assertEqual(len(ids), len(set(ids)))

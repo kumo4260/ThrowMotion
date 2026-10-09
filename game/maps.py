@@ -11,13 +11,30 @@
 - 블록의 x, y는 "중심" 좌표, w/h는 크기.
 - type: 'wood'(약함, hp1) / 'stone'(강함, hp2) / 'pig'(목표물, 전부 파괴하면 승리)
         / 'rock'(움직이지 않고 부서지지 않는 지형)
+- walls: 맵 양 끝(왼쪽/오른쪽)의 벽. 새와 블록이 맵 밖으로 나가지 못하게
+  막는다. 화면 위쪽으로도 높이 솟아 있어서 높이 쏜 새도 넘어가지 못한다.
 """
 
 GROUND_HEIGHT = 40
+WALL_THICKNESS = 40
+# 벽 꼭대기 y. 최대 발사 속도(2000)로 바로 위로 쏴도 꼭짓점이 y=-1300 정도라서
+# 그보다 충분히 높게 둔다(화면에는 y=0 아래만 보인다).
+WALL_TOP = -3000
 
 
 def _ground(height):
     return height - GROUND_HEIGHT
+
+
+def walls(width, height):
+    """맵 왼쪽/오른쪽 끝의 벽 2개 (블록과 같은 중심 좌표 규칙)."""
+    h = _ground(height) - WALL_TOP
+    cy = WALL_TOP + h / 2
+    half = WALL_THICKNESS / 2
+    return [
+        {"x": half, "y": cy, "w": WALL_THICKNESS, "h": h},
+        {"x": width - half, "y": cy, "w": WALL_THICKNESS, "h": h},
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +209,8 @@ for _m in BIG_MAPS:
     )
 
 MAPS = BIG_MAPS + PRACTICE_MAPS
+for _m in MAPS:
+    _m["walls"] = walls(_m["width"], _m["height"])
 MAPS_BY_ID = {m["id"]: m for m in MAPS}
 
 

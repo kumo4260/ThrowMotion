@@ -14,7 +14,15 @@
     font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     overflow: hidden;
   }
+  /* 게임 화면이 상단 바를 뺀 브라우저 창 전체를 쓰도록 세로로 꽉 채운다. */
+  body {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
   #ui-bar {
+    flex: none;
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -49,11 +57,12 @@
   }
   #ui-bar button:hover { background: #3a4152; }
   #ui-bar button.active { background: #ffb020; color: #1b1f27; font-weight: bold; }
+  /* Phaser(Scale.FIT)가 이 영역에 맞춰 캔버스를 비율 유지로 키우고 가운데 둔다. */
   #game-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    flex: 1;
+    min-height: 0;
     width: 100%;
+    overflow: hidden;
   }
   #note {
     margin-left: auto;
