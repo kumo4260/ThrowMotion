@@ -17,7 +17,7 @@ class SignupTests(TestCase):
             reverse("signup"),
             {"username": "kumo", "password1": PASSWORD, "password2": PASSWORD},
         )
-        self.assertRedirects(res, reverse("index"))
+        self.assertRedirects(res, reverse("map_select"))
         self.assertTrue(User.objects.filter(username="kumo").exists())
         self.assertIn("_auth_user_id", self.client.session)
 
@@ -44,7 +44,7 @@ class LoginLogoutTests(TestCase):
 
     def test_login_with_valid_credentials(self):
         res = self.client.post(reverse("login"), {"username": "kumo", "password": PASSWORD})
-        self.assertRedirects(res, reverse("index"))
+        self.assertRedirects(res, reverse("map_select"))
         self.assertIn("_auth_user_id", self.client.session)
 
     def test_login_with_wrong_password(self):
@@ -55,21 +55,20 @@ class LoginLogoutTests(TestCase):
     def test_logout(self):
         self.client.login(username="kumo", password=PASSWORD)
         res = self.client.post(reverse("logout"))
-        self.assertRedirects(res, reverse("index"))
+        self.assertRedirects(res, reverse("home"))
         self.assertNotIn("_auth_user_id", self.client.session)
 
 
-class GamePageTests(TestCase):
-    def test_game_page_shows_login_links_for_anonymous(self):
-        res = self.client.get(reverse("index"))
+class NavTests(TestCase):
+    def test_home_shows_login_links_for_anonymous(self):
+        res = self.client.get(reverse("home"))
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, reverse("login"))
-        self.assertContains(res, "window.MATCH_RECORD = null")
+        self.assertContains(res, reverse("signup"))
 
-    def test_game_page_shows_user_for_logged_in(self):
+    def test_home_shows_user_for_logged_in(self):
         User.objects.create_user("kumo", password=PASSWORD)
         self.client.login(username="kumo", password=PASSWORD)
-        res = self.client.get(reverse("index"))
-        self.assertEqual(res.status_code, 200)
+        res = self.client.get(reverse("home"))
         self.assertContains(res, "kumo")
-        self.assertContains(res, reverse("matches:record"))
+        self.assertContains(res, reverse("map_select"))

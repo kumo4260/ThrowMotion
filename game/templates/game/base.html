@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}새총 대전{% endblock %}</title>
+<style>
+  body {
+    margin: 0;
+    background: #1b1f27;
+    color: #eee;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
+    background: #12151b;
+    border-bottom: 2px solid #2c313c;
+    font-size: 14px;
+  }
+  nav .brand { font-weight: bold; color: #ffd76a; text-decoration: none; font-size: 16px; }
+  nav .spacer { margin-left: auto; }
+  nav form { margin: 0; }
+  nav button {
+    background: #2c313c;
+    color: #eee;
+    border: 1px solid #444b58;
+    border-radius: 6px;
+    padding: 4px 12px;
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+  }
+  main {
+    max-width: 420px;
+    margin: 48px auto;
+    padding: 24px;
+    background: #12151b;
+    border: 1px solid #2c313c;
+    border-radius: 8px;
+  }
+  main.wide { max-width: 1040px; background: none; border: 0; padding: 0 16px; }
+  h1 { font-size: 20px; color: #ffd76a; margin-top: 0; }
+  a { color: #ffb020; }
+  label { display: block; margin-top: 12px; font-size: 13px; }
+  input { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 4px; }
+  .helptext, .errorlist { font-size: 12px; color: #9aa3b2; }
+  .errorlist { color: #ff7b7b; }
+  button, .btn {
+    display: inline-block;
+    margin-top: 16px;
+    background: #ffb020;
+    color: #1b1f27;
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: bold;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn.secondary { background: #2c313c; color: #eee; border: 1px solid #444b58; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px; border-bottom: 1px solid #2c313c; text-align: left; }
+  {% block extra_style %}{% endblock %}
+</style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="{% url 'home' %}">새총 대전</a>
+  {% if user.is_authenticated %}
+    <a href="{% url 'map_select' %}">맵 선택</a>
+    <a href="{% url 'matches:history' %}">내 전적</a>
+    <span class="spacer">{{ user.username }}</span>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit">로그아웃</button>
+    </form>
+  {% else %}
+    <span class="spacer"></span>
+    <a href="{% url 'login' %}">로그인</a>
+    <a href="{% url 'signup' %}">회원가입</a>
+  {% endif %}
+</nav>
+<main class="{% block main_class %}{% endblock %}">
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>
