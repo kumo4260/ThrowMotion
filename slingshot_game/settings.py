@@ -17,6 +17,8 @@ DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 ALLOWED_HOSTS = ["throwmotion.onrender.com", "127.0.0.1", "localhost"]
 
 INSTALLED_APPS = [
+    # daphne가 맨 앞에 있어야 runserver도 WebSocket(ASGI)을 지원한다.
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -26,6 +28,8 @@ INSTALLED_APPS = [
     "game",
     "accounts",
     "matches",
+    "channels",
+    "battle",
 ]
 
 MIDDLEWARE = [
@@ -58,6 +62,11 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "slingshot_game.wsgi.application"
+ASGI_APPLICATION = "slingshot_game.asgi.application"
+
+# 1대1 요새전 WebSocket 메시지 전달. 방 상태가 서버 메모리에 있어서
+# 서버 프로세스 하나(daphne 1개)로 돌리는 것을 전제로 메모리 레이어를 쓴다.
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
 DATABASES = {
     "default": {
@@ -77,5 +86,5 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "map_select"
+LOGIN_REDIRECT_URL = "mode_select"
 LOGOUT_REDIRECT_URL = "home"

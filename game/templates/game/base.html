@@ -71,7 +71,8 @@
 <nav>
   <a class="brand" href="{% url 'home' %}">새총 대전</a>
   {% if user.is_authenticated %}
-    <a href="{% url 'map_select' %}">맵 선택</a>
+    <a href="{% url 'map_select' %}">솔로 플레이</a>
+    <a href="{% url 'battle:lobby' %}">멀티플레이</a>
     <a href="{% url 'matches:history' %}">내 전적</a>
     <span class="spacer">{{ user.username }}</span>
     <form method="post" action="{% url 'logout' %}">

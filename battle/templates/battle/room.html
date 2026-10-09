@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>요새전 {{ room_code }} - 새총 대전</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #1b1f27;
+    color: #eee;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    overflow: hidden;
+  }
+  #ui-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #12151b;
+    border-bottom: 2px solid #2c313c;
+  }
+  #ui-bar h1 {
+    font-size: 16px;
+    margin: 0;
+    margin-right: 12px;
+  }
+  #ui-bar h1 a { color: #ffd76a; text-decoration: none; }
+  #ui-bar a.nav-btn {
+    color: #eee;
+    text-decoration: none;
+    border: 1px solid #444b58;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 13px;
+  }
+  #ui-bar a.nav-btn:hover { background: #3a4152; }
+  #map-title { font-weight: bold; color: #ffd76a; font-size: 14px; }
+  #ui-bar button {
+    background: #2c313c;
+    color: #eee;
+    border: 1px solid #444b58;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #ui-bar button:hover { background: #3a4152; }
+  #ui-bar button.active { background: #ffb020; color: #1b1f27; font-weight: bold; }
+  #game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+  #note {
+    margin-left: auto;
+    font-size: 12px;
+    color: #9aa3b2;
+  }
+  #ui-bar button.mode-btn {
+    background: #1c2e22;
+    border-color: #2f5e3a;
+  }
+  #ui-bar button.mode-btn.active {
+    background: #4bc86a;
+    color: #10241a;
+  }
+  #game-container {
+    position: relative;
+  }
+  #cam-box {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    width: 220px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    background: #12151b;
+    border: 1px solid #2c313c;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 10;
+  }
+  #cam-video-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  #cam-video, #cam-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: scaleX(-1); /* 거울 모드로 자연스럽게 보이도록 좌우 반전 */
+  }
+  #account-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  #account-box a { color: #ffd76a; }
+  #account-box form { margin: 0; }
+  #room-code { font-family: monospace; font-size: 15px; color: #ffd76a; letter-spacing: 2px; }
+  #players { font-size: 13px; display: flex; gap: 10px; }
+  #players .p { padding: 3px 10px; border-radius: 12px; background: #2c313c; }
+  #players .p.turn { background: #ffb020; color: #1b1f27; font-weight: bold; }
+  #players .p.off { opacity: 0.5; }
+  #players .p1 { border-left: 4px solid #4a8fe2; }
+  #players .p2 { border-left: 4px solid #e24b4a; }
+  #cam-status {
+    font-size: 12px;
+    color: #9aa3b2;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="ui-bar">
+  <h1><a href="{% url 'home' %}">새총 대전</a></h1>
+  <a class="nav-btn" href="{% url 'battle:lobby' %}">← 로비</a>
+  <span>방 코드 <span id="room-code">{{ room_code }}</span></span>
+  <span id="players"></span>
+  <button id="mouse-mode-btn" class="mode-btn active">마우스 모드</button>
+  <button id="cam-mode-btn" class="mode-btn">캠 모드</button>
+  <span id="note">상대를 기다리는 중...</span>
+  <span id="account-box">{{ user.username }}</span>
+</div>
+
+<div id="game-container">
+  <div id="cam-box">
+    <div id="cam-video-wrap">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <canvas id="cam-overlay"></canvas>
+    </div>
+    <div id="cam-status">카메라 대기 중</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+{{ map|json_script:"map-data" }}
+<script>
+  window.BATTLE = {
+    wsPath: "/ws/battle/{{ room_code }}/",
+    lobbyUrl: "{% url 'battle:lobby' %}",
+    myName: "{{ user.username|escapejs }}",
+  };
+</script>
+<script src="{% static 'battle/js/battle.js' %}"></script>
+<script type="module" src="{% static 'game/js/hand_control.js' %}"></script>
+
+</body>
+</html>

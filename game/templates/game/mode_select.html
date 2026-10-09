@@ -1,0 +1,40 @@
+{% extends "game/base.html" %}
+{% block title %}모드 선택 - 새총 대전{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block extra_style %}
+  .mode-head { text-align: center; padding: 40px 16px 8px; }
+  .mode-head h1 { font-size: 28px; }
+  .mode-head p { color: #9aa3b2; margin: 0; }
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 28px 0 48px; }
+  .mode {
+    display: block;
+    background: #12151b;
+    border: 2px solid #2c313c;
+    border-radius: 10px;
+    padding: 28px 24px;
+    color: #eee;
+    text-decoration: none;
+  }
+  .mode:hover { border-color: #ffb020; background: #171b23; }
+  .mode .icon { font-size: 40px; }
+  .mode h2 { color: #ffd76a; font-size: 22px; margin: 12px 0 8px; }
+  .mode p { color: #9aa3b2; font-size: 14px; line-height: 1.6; margin: 0; }
+{% endblock %}
+{% block content %}
+<section class="mode-head">
+  <h1>어떻게 플레이할까요?</h1>
+  <p>{{ user.username }}님, 모드를 골라 주세요.</p>
+</section>
+<section class="modes">
+  <a class="mode" id="solo-mode" href="{% url 'map_select' %}">
+    <div class="icon">🎯</div>
+    <h2>솔로 플레이</h2>
+    <p>대형 맵 4개와 연습 맵 2개 중 하나를 골라 혼자서 돼지를 모두 쓰러뜨립니다.</p>
+  </a>
+  <a class="mode" id="multi-mode" href="{% url 'battle:lobby' %}">
+    <div class="icon">⚔️</div>
+    <h2>멀티플레이 (1대1 요새전)</h2>
+    <p>맵 양 끝에 각자의 요새를 두고 상대와 번갈아 쏩니다. 상대 요새의 돼지를 먼저 모두 쓰러뜨리면 승리!</p>
+  </a>
+</section>
+{% endblock %}
