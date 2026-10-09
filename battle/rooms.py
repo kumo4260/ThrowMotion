@@ -173,7 +173,7 @@ class Room:
 
 
 def _public_block(b):
-    return {"id": b["id"], "x": b["x"], "y": b["y"], "hp": 2 if b["type"] == "stone" else 1}
+    return {"id": b["id"], "x": b["x"], "y": b["y"], "angle": 0.0, "hp": 2 if b["type"] == "stone" else 1}
 
 
 def _clean_blocks(blocks):
@@ -190,6 +190,8 @@ def _clean_blocks(blocks):
             x = float(item["x"])
             y = float(item["y"])
             hp = int(item["hp"])
+            # 블록이 넘어져 기운 각도(라디안). 예전 브라우저는 보내지 않으므로 없으면 0.
+            angle = float(item.get("angle", 0))
         except (KeyError, TypeError, ValueError):
             return None
         src = _BLOCKS_BY_ID.get(bid)
@@ -197,11 +199,14 @@ def _clean_blocks(blocks):
             return None
         if not (math.isfinite(x) and math.isfinite(y)) or abs(x) > _MAX_COORD or abs(y) > _MAX_COORD:
             return None
+        if not math.isfinite(angle):
+            return None
+        angle = math.atan2(math.sin(angle), math.cos(angle))  # -π ~ π로 정리
         if hp <= 0:
             continue
         seen.add(bid)
         max_hp = 2 if src["type"] == "stone" else 1
-        cleaned.append({"id": bid, "x": round(x, 1), "y": round(y, 1), "hp": min(hp, max_hp)})
+        cleaned.append({"id": bid, "x": round(x, 1), "y": round(y, 1), "angle": round(angle, 3), "hp": min(hp, max_hp)})
     return cleaned
 
 

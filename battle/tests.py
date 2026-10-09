@@ -1,3 +1,5 @@
+import math
+
 from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.conf import settings
@@ -89,6 +91,24 @@ class RoomRuleTests(TestCase):
         self.assertFalse(self.room.settle(1, [{"id": 9999, "x": 1, "y": 1, "hp": 1}]))
         rock_id = next(b["id"] for b in BATTLE_MAP["blocks"] if b["type"] == "rock")
         self.assertFalse(self.room.settle(1, [{"id": rock_id, "x": 1, "y": 1, "hp": 1}]))
+
+    def test_block_angles_are_kept_and_normalized(self):
+        blocks = _initial_blocks()
+        blocks[0]["angle"] = 1.5708
+        blocks[1]["angle"] = 7.0  # 한 바퀴 넘게 돈 각도는 -π ~ π로
+        del blocks[2]["angle"]  # 각도를 안 보내면 0
+        self.room.shoot(1, 10, 10)
+        self.assertTrue(self.room.settle(1, blocks))
+        by_id = {b["id"]: b for b in self.room.blocks}
+        self.assertEqual(by_id[blocks[0]["id"]]["angle"], 1.571)
+        self.assertAlmostEqual(by_id[blocks[1]["id"]]["angle"], round(7.0 - 2 * math.pi, 3))
+        self.assertEqual(by_id[blocks[2]["id"]]["angle"], 0.0)
+
+    def test_non_finite_angle_is_rejected(self):
+        blocks = _initial_blocks()
+        blocks[0]["angle"] = float("nan")
+        self.room.shoot(1, 10, 10)
+        self.assertFalse(self.room.settle(1, blocks))
 
     def test_destroying_all_enemy_pigs_wins(self):
         self.room.shoot(1, 10, 10)

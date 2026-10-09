@@ -168,6 +168,7 @@
     csrfToken: "{{ csrf_token }}",
   }{% else %}null{% endif %};
 </script>
+<script src="{% static 'game/js/physics.js' %}"></script>
 <script src="{% static 'game/js/game.js' %}"></script>
 <script type="module" src="{% static 'game/js/hand_control.js' %}"></script>
 

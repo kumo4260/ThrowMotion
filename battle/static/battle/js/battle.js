@@ -8,6 +8,8 @@
 //   - 쏜 사람 화면에서 새와 블록이 멈추면 블록 상태를 서버로 보낸다(settle).
 //   - 상대 화면은 그 상태(sync)로 블록을 다시 맞춘다. 물리 결과가 브라우저마다
 //     조금씩 달라도 "쏜 사람 화면"이 정답이 된다.
+//   - 물리는 Matter.js(game/js/physics.js)라서 블록이 회전하고 넘어진다.
+//     그래서 블록 상태에는 위치와 hp 말고 기울어진 각도(angle, 라디안)도 들어간다.
 //
 // 당기기/발사 로직은 game.js와 같은 beginPull/movePull/finishPull 구조라서
 // 캠 모드(hand_control.js)도 그대로 쓸 수 있다.
@@ -18,9 +20,9 @@ const VIEW_H = 700;
 const GROUND_HEIGHT = 40;
 
 const MAX_PULL = 160;
-const DAMAGE_SPEED_THRESHOLD = 90;
 const SCROLL_SPEED = 900;
-const BLOCK_REST_SPEED = 20; // 블록이 이 속도보다 느리면 멈춘 것으로 본다
+const BLOCK_REST_SPEED = 20; // 블록이 이 속도(px/s)보다 느리면 멈춘 것으로 본다
+const BLOCK_REST_SPIN = 0.3; // 회전도 이 속도(rad/s)보다 느려야 한다
 
 const MAP = JSON.parse(document.getElementById("map-data").textContent);
 const WORLD_W = MAP.width;
@@ -97,16 +99,7 @@ class BattleScene extends Phaser.Scene {
     this.blockWaitTime = 0;
     this.sendingSettle = false;
 
-    // 물리 경계 = 양 끝 벽의 안쪽 면. 벽(정적 바디)만 있으면 블록 여러 개가 한꺼번에
-    // 밀려올 때 서로 밀어내다 벽을 뚫고 나갈 수 있어서, 경계로 한 번 더 막는다.
-    // 위/아래는 막지 않는다(높이 쏜 새는 화면 위로 나갔다가 돌아오고, 바닥은 따로 있다).
-    const walls = [...(MAP.walls || [])].sort((a, b) => a.x - b.x);
-    const innerL = walls.length ? walls[0].x + walls[0].w / 2 : 0;
-    const innerR = walls.length ? walls[walls.length - 1].x - walls[walls.length - 1].w / 2 : WORLD_W;
-    this.physics.world.setBounds(innerL, 0, innerR - innerL, WORLD_H, true, true, false, false);
-    this.innerL = innerL;
-    this.innerR = innerR;
-    this.physics.world.gravity.y = 950;
+    this.physicsAccum = 0;
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
@@ -116,7 +109,12 @@ class BattleScene extends Phaser.Scene {
     this.drawBackground();
 
     const ground = this.add.rectangle(WORLD_W / 2, WORLD_H - GROUND_HEIGHT / 2, WORLD_W, GROUND_HEIGHT, 0x4a3a2c);
-    this.physics.add.existing(ground, true);
+    addStaticBox(this, ground.x, ground.y, WORLD_W, GROUND_HEIGHT, ground);
+
+    // 맵 양 끝의 보이지 않는 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다.
+    const inner = addEndWalls(this, MAP.walls, WORLD_W);
+    this.innerL = inner.innerL;
+    this.innerR = inner.innerR;
 
     // ---- 새총 두 개(1P 왼쪽, 2P 오른쪽) ----
     this.slings = { 1: MAP.slings["1"], 2: MAP.slings["2"] };
@@ -144,39 +142,33 @@ class BattleScene extends Phaser.Scene {
     });
 
     // ---- 지형(바위)과 블록 ----
-    this.rocksGroup = this.physics.add.staticGroup();
-    // 맵 양 끝의 보이지 않는 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다(바위와 같이 충돌).
-    (MAP.walls || []).forEach((w) => {
-      const wall = this.add.rectangle(w.x, w.y, w.w, w.h).setVisible(false); // 충돌만 하고 화면에는 안 보임
-      this.rocksGroup.add(wall);
-    });
     MAP.blocks.filter((b) => b.type === "rock").forEach((b) => {
       const rock = this.add.rectangle(b.x, b.y, b.w, b.h, 0x5b5148).setStrokeStyle(2, 0x3a332c);
-      this.rocksGroup.add(rock);
+      addStaticBox(this, b.x, b.y, b.w, b.h, rock);
     });
-    // 블록도 물리 경계(벽 안쪽)를 넘지 못하게 한다. 그룹에 넣을 때 그룹 기본값이 바디에
-    // 덮어써지므로 개별 바디가 아니라 그룹 설정으로 켠다.
-    this.blocksGroup = this.physics.add.group({ collideWorldBounds: true });
-    this.physics.add.collider(this.blocksGroup, ground);
-    this.physics.add.collider(this.blocksGroup, this.rocksGroup);
-    this.physics.add.collider(this.blocksGroup, this.blocksGroup);
+    this.blocks = [];
     this.rebuildBlocks(
       latestBlocks ||
-      MAP.blocks.filter((b) => b.type !== "rock").map((b) => ({ id: b.id, x: b.x, y: b.y, hp: b.type === "stone" ? 2 : 1 }))
+      MAP.blocks.filter((b) => b.type !== "rock").map((b) => ({ id: b.id, x: b.x, y: b.y, angle: 0, hp: b.type === "stone" ? 2 : 1 }))
     );
 
     // ---- 새 ----
     // 텍스처를 늘리면 흐려지므로 도형(원)으로 그려서 어떤 해상도에서도 선명하게 한다.
     this.bird = this.add.circle(this.anchor.x, this.anchor.y, 18, 0xe24b4a).setStrokeStyle(2, 0x791f1f);
-    this.physics.add.existing(this.bird);
-    this.bird.body.setCircle(18);
-    this.bird.body.setAllowGravity(false);
-    this.bird.body.setBounce(0.35);
-    this.bird.body.setCollideWorldBounds(true);
-    this.bird.body.moves = false;
-    this.physics.add.collider(this.bird, ground);
-    this.physics.add.collider(this.bird, this.rocksGroup);
-    this.physics.add.collider(this.bird, this.blocksGroup, this.onBirdHitBlock, null, this);
+    addBirdBody(this, this.bird, 18);
+    this.birdTouchedAt = -1;
+
+    // 부딪힌 순간의 속도로 블록 데미지를 계산한다(새에 맞든, 떨어지든, 깔리든).
+    this.matter.world.on("collisionstart", (event) => {
+      event.pairs.forEach((pair) => this.onImpact(pair));
+    });
+    // 새가 무언가에 닿아 있는지(굴러가는 새를 멈추기 위해)
+    this.matter.world.on("collisionactive", (event) => {
+      event.pairs.forEach((pair) => {
+        const [a, b] = pairObjects(pair);
+        if (a === this.bird || b === this.bird) this.birdTouchedAt = this.time.now;
+      });
+    });
 
     this.aimLine = this.add.graphics();
     this.trajectoryDots = this.add.graphics();
@@ -248,9 +240,10 @@ class BattleScene extends Phaser.Scene {
   }
 
   // ---------------- 블록 ----------------
-  // 서버가 준 블록 목록(id, x, y, hp)대로 블록을 전부 다시 만든다.
+  // 서버가 준 블록 목록(id, x, y, angle, hp)대로 블록을 전부 다시 만든다.
   rebuildBlocks(list) {
-    this.blocksGroup.clear(true, true);
+    this.blocks.forEach((obj) => obj.destroy());
+    this.blocks = [];
     list.forEach((s) => {
       const b = BLOCK_META[s.id];
       if (!b || b.type === "rock") return;
@@ -262,50 +255,53 @@ class BattleScene extends Phaser.Scene {
       } else {
         obj = this.add.rectangle(s.x, s.y, b.w, b.h, 0xc98a4b).setStrokeStyle(2, 0x7a5326);
       }
-      this.physics.add.existing(obj);
-      if (b.type === "pig") obj.body.setCircle(b.w / 2);
-      else obj.body.setSize(b.w, b.h);
-      obj.body.setBounce(0.05);
-      obj.body.setDrag(40, 0);
-      obj.body.setFriction(1, 0);
+      // 쏜 사람 화면에서 멈춘 그대로 잠든 상태로 만든다(부딪히면 깨어난다).
+      attachBlockBody(this, obj, b, s.angle || 0);
       obj.setData("id", s.id);
       obj.setData("type", b.type);
       obj.setData("hp", s.hp);
       if (b.type === "stone" && s.hp < 2) obj.setAlpha(0.75); // 금 간 돌
-      this.blocksGroup.add(obj);
+      this.blocks.push(obj);
     });
   }
 
   snapshotBlocks() {
-    return this.blocksGroup.getChildren().map((obj) => ({
+    return this.blocks.map((obj) => ({
       id: obj.getData("id"),
       x: Math.round(obj.x * 10) / 10,
       y: Math.round(obj.y * 10) / 10,
+      angle: Math.round(Phaser.Math.Angle.Wrap(obj.rotation) * 1000) / 1000,
       hp: obj.getData("hp"),
     }));
   }
 
   blocksAtRest() {
-    return this.blocksGroup.getChildren().every((obj) => obj.body.speed < BLOCK_REST_SPEED);
+    return this.blocks.every((obj) =>
+      obj.body.isSleeping || (bodySpeed(obj.body) < BLOCK_REST_SPEED && bodyAngularSpeed(obj.body) < BLOCK_REST_SPIN)
+    );
   }
 
-  onBirdHitBlock(bird, block) {
-    if (bird.body.speed < DAMAGE_SPEED_THRESHOLD) return;
-    const hp = block.getData("hp") - 1;
+  onImpact(pair) {
+    const [a, b] = pairObjects(pair);
+    if (!a || !b || pair.isSensor) return;
+    const speed = impactSpeed(pair);
+    [[a, b], [b, a]].forEach(([block, other]) => {
+      if (!block.getData || !block.getData("type") || block.getData("dead")) return;
+      const damage = impactDamage(block.getData("type"), speed, other === this.bird);
+      if (damage > 0) this.damageBlock(block, damage);
+    });
+  }
+
+  damageBlock(block, damage) {
+    const hp = block.getData("hp") - damage;
     block.setData("hp", hp);
     if (hp > 0) {
       block.setAlpha(0.75);
       return;
     }
-    this.blocksGroup.remove(block, false, false);
-    block.body.enable = false;
-    this.tweens.add({
-      targets: block,
-      alpha: 0,
-      scale: 0.2,
-      duration: 150,
-      onComplete: () => block.destroy(),
-    });
+    this.blocks = this.blocks.filter((o) => o !== block);
+    removeBlockWithFade(this, block);
+    wakeAll(this.blocks);
   }
 
   // ---------------- 카메라 ----------------
@@ -356,7 +352,8 @@ class BattleScene extends Phaser.Scene {
     const angle = Math.atan2(dy, dx);
     // 새총이 벽 가까이 있어도(연습 맵) 당긴 새가 벽 속으로 들어가지 않게 한다.
     const px = Phaser.Math.Clamp(this.anchor.x + Math.cos(angle) * dist, this.innerL + 18, this.innerR - 18);
-    const py = this.anchor.y + Math.sin(angle) * dist;
+    // 새를 바닥 속으로 당기면 놓았을 때 바닥 아랫면에 부딪혀 튕겨 나가므로 바닥 위까지만 당긴다.
+    const py = Math.min(this.anchor.y + Math.sin(angle) * dist, GROUND_Y - 18);
     this.bird.setPosition(px, py);
     this.drawAim(px, py);
   }
@@ -404,7 +401,7 @@ class BattleScene extends Phaser.Scene {
     const angle = Math.atan2(dy, dx);
     const vx = Math.cos(angle) * power;
     const vy = Math.sin(angle) * power;
-    const gravity = this.physics.world.gravity.y;
+    const gravity = GRAVITY;
     this.trajectoryDots.fillStyle(0xffffff, 0.7);
     for (let i = 1; i <= 8; i++) {
       const t = i * 0.09;
@@ -424,9 +421,7 @@ class BattleScene extends Phaser.Scene {
     this.anchor = this.slings[slot];
     this.shooterSlot = slot;
     this.bird.setPosition(this.anchor.x, this.anchor.y);
-    this.bird.body.moves = true;
-    this.bird.body.setAllowGravity(true);
-    this.bird.body.setVelocity(vx, vy);
+    releaseBird(this.bird, vx, vy);
     this.isFlying = true;
     this.flightTime = 0;
     this.settleTimer = 0;
@@ -447,24 +442,24 @@ class BattleScene extends Phaser.Scene {
     this.isFlying = false;
     this.sendingSettle = false;
     this.shooterSlot = null;
-    this.bird.body.setVelocity(0, 0);
-    this.bird.body.setAllowGravity(false);
-    this.bird.body.moves = false;
+    holdBird(this.bird);
     this.cameras.main.stopFollow();
   }
 
   update(time, delta) {
+    stepPhysics(this, delta);
+
     if (!this.isFlying && !this.isDragging) {
       if (this.cursors.left.isDown) this.scrollCameraBy((-SCROLL_SPEED * delta) / 1000);
       if (this.cursors.right.isDown) this.scrollCameraBy((SCROLL_SPEED * delta) / 1000);
     }
     if (!this.isFlying) return;
 
-    const b = this.bird.body;
     this.flightTime += delta;
-    if (b.blocked.down || b.touching.down) b.velocity.x *= Math.pow(0.05, delta / 1000);
+    // 바닥/블록 위를 구르는 새는 구름 저항으로 멈추게 한다.
+    if (time - this.birdTouchedAt < 100) dampRolling(this.bird, Math.pow(0.15, delta / 1000));
     const offScreen = this.bird.x > WORLD_W + 40 || this.bird.x < -40 || this.bird.y > WORLD_H + 100;
-    const nearlyStopped = Math.abs(b.velocity.x) < 8 && Math.abs(b.velocity.y) < 8 && b.y > 0;
+    const nearlyStopped = (bodySpeed(this.bird.body) < 12 || this.bird.body.isSleeping) && this.bird.y > 0;
     this.settleTimer = offScreen || nearlyStopped ? this.settleTimer + delta : 0;
     const birdDone = offScreen || this.settleTimer > 550 || this.flightTime > 12000;
     if (!birdDone) return;
@@ -645,10 +640,7 @@ function createGame() {
     // 브라우저 창에 맞춰 비율을 유지한 채 최대한 크게 키운다(게임 좌표는 VIEW_W x VIEW_H 그대로).
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     backgroundColor: "#87b8d6",
-    physics: {
-      default: "arcade",
-      arcade: { gravity: { y: 950 }, debug: false, fps: 120 },
-    },
+    physics: matterPhysicsConfig(),
     scene: [BattleScene],
   });
 }

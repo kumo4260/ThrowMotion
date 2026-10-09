@@ -34,6 +34,18 @@ class MapDataTests(TestCase):
                 self.assertLessEqual(b["y"] + b["h"] / 2, ground_y + 0.5, (m["id"], b))
                 self.assertGreaterEqual(b["y"] - b["h"] / 2, 0, (m["id"], b))
 
+    def test_blocks_do_not_overlap(self):
+        # 물리 엔진(Matter)은 겹쳐 있는 블록을 서로 튕겨 내서, 겹친 채로 만든 맵은
+        # 시작하자마자 무너진다. 맞닿는 것(경계가 같은 것)은 괜찮다.
+        for m in MAPS:
+            blocks = m["blocks"]
+            for i, a in enumerate(blocks):
+                for b in blocks[i + 1:]:
+                    overlap_x = (a["w"] + b["w"]) / 2 - abs(a["x"] - b["x"])
+                    overlap_y = (a["h"] + b["h"]) / 2 - abs(a["y"] - b["y"])
+                    with self.subTest(map=m["id"], a=a, b=b):
+                        self.assertFalse(overlap_x > 0.5 and overlap_y > 0.5)
+
     def test_every_map_has_end_walls_clear_of_blocks_and_sling(self):
         for m in MAPS:
             left, right = sorted(m["walls"], key=lambda w: w["x"])
