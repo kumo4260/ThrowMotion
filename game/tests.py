@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from matches.models import Match
 
-from .maps import BIG_MAPS, MAPS, PRACTICE_MAPS, pig_count
+from .maps import BIG_MAPS, MAPS, PRACTICE_MAPS, WALL_THICKNESS, pig_count
 
 User = get_user_model()
 PASSWORD = "slingshot-Pass-1234"
@@ -33,6 +33,21 @@ class MapDataTests(TestCase):
                 self.assertLessEqual(b["x"] + b["w"] / 2, m["width"], (m["id"], b))
                 self.assertLessEqual(b["y"] + b["h"] / 2, ground_y + 0.5, (m["id"], b))
                 self.assertGreaterEqual(b["y"] - b["h"] / 2, 0, (m["id"], b))
+
+    def test_every_map_has_end_walls_clear_of_blocks_and_sling(self):
+        for m in MAPS:
+            left, right = sorted(m["walls"], key=lambda w: w["x"])
+            ground_y = m["height"] - 40
+            self.assertEqual(left["x"] - left["w"] / 2, 0, m["id"])
+            self.assertEqual(right["x"] + right["w"] / 2, m["width"], m["id"])
+            for w in (left, right):
+                # 바닥까지 내려오고, 화면 위로 높이 솟아서 높이 쏜 새도 못 넘어간다
+                self.assertAlmostEqual(w["y"] + w["h"] / 2, ground_y, msg=m["id"])
+                self.assertLess(w["y"] - w["h"] / 2, -2000, m["id"])
+            for b in m["blocks"]:
+                self.assertGreaterEqual(b["x"] - b["w"] / 2, WALL_THICKNESS, (m["id"], b))
+                self.assertLessEqual(b["x"] + b["w"] / 2, m["width"] - WALL_THICKNESS, (m["id"], b))
+            self.assertGreater(m["slingAnchor"]["x"] - 18, WALL_THICKNESS, m["id"])
 
 
 class FlowTests(TestCase):
