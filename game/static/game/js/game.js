@@ -27,6 +27,31 @@ const MAX_LAUNCH_SPEED = MAP.maxLaunchSpeed; // 큰 맵일수록 멀리 날아�
 let gameInstance = null;
 let controlMode = "mouse"; // "mouse" | "cam"
 
+// ---- 선명한 화면 ----
+// 캔버스를 화면에 보이는 크기 x 기기 픽셀 비율만큼 큰 해상도(RES배)로 만들고,
+// 카메라를 RES배 확대해서 게임 좌표는 그대로 VIEW_W x VIEW_H로 쓴다.
+// (작은 캔버스를 늘려서 흐릿하게 보이던 것을 해결. 너무 무거워지지 않게 최대 3배)
+let RES = 1;
+
+function pickResolution() {
+  const box = document.getElementById("game-container").getBoundingClientRect();
+  const fit = Math.min(box.width / VIEW_W, box.height / VIEW_H) || 1;
+  const want = fit * (window.devicePixelRatio || 1);
+  return Math.min(3, Math.max(1, Math.ceil(want * 4) / 4)); // 0.25 단위라 캔버스 크기가 정수로 떨어진다
+}
+
+// create()의 마지막에 부른다. 화면 고정 UI(scrollFactor 0)는 카메라 확대의 영향을
+// 받으므로 컨테이너에 모아 확대 중심만큼 옮겨 두고(그래서 UI 좌표도 VIEW_W x VIEW_H 기준),
+// 글자는 RES배 해상도로 그려서 흐려지지 않게 한다.
+function sharpenScene(scene) {
+  const hud = scene.add.container((VIEW_W / 2) * (RES - 1), (VIEW_H / 2) * (RES - 1))
+    .setScrollFactor(0).setDepth(10);
+  scene.children.list.slice().forEach((obj) => {
+    if (obj.type === "Text") obj.setResolution(RES);
+    if (obj !== hud && obj.scrollFactorX === 0 && obj.scrollFactorY === 0) hud.add(obj);
+  });
+}
+
 function getActiveScene() {
   return gameInstance ? gameInstance.scene.getScene("GameScene") : null;
 }
@@ -36,25 +61,9 @@ class GameScene extends Phaser.Scene {
     super("GameScene");
   }
 
-  preload() {
-    // 이미지 에셋 없이 Graphics로 즉석 텍스처 생성 (임시 테스트용)
-    const g = this.add.graphics();
-
-    // 새(투사체) - 빨간 원
-    g.clear();
-    g.fillStyle(0xe24b4a, 1);
-    g.fillCircle(18, 18, 18);
-    g.lineStyle(2, 0x791f1f, 1);
-    g.strokeCircle(18, 18, 18);
-    g.generateTexture("bird", 36, 36);
-
-    // 블록(나무/돌)과 돼지, 바닥은 맵마다 크기가 달라서 고정 텍스처 대신
-    // Phaser Shape(Rectangle/Circle) + 물리 바디로 만든다.
-    // (텍스처를 setDisplaySize로 늘리면 물리 바디 크기가 스케일과
-    //  곱해져 이중으로 커지는 문제가 있어 이 방식으로 피한다.)
-
-    g.destroy();
-  }
+  // 이미지 에셋 없이 새/블록/돼지/바닥을 모두 Phaser Shape(Rectangle/Circle) + 물리 바디로 만든다.
+  // (텍스처를 setDisplaySize로 늘리면 물리 바디 크기가 스케일과 곱해져 이중으로 커지고,
+  //  고해상도 화면에서 흐려지는 문제가 있어 이 방식으로 피한다.)
 
   create() {
     const mapData = MAP;
@@ -79,6 +88,7 @@ class GameScene extends Phaser.Scene {
     // ---- 카메라: 화면보다 큰 맵은 스크롤 ----
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
+    cam.setZoom(RES); // 캔버스가 RES배 크므로 확대해서 보이는 범위는 VIEW_W x VIEW_H로 유지
     cam.setBackgroundColor("#87b8d6");
 
     // ---- 배경 ----
@@ -101,9 +111,9 @@ class GameScene extends Phaser.Scene {
     this.blocksGroup = this.physics.add.group({ collideWorldBounds: true });
     // 'rock'은 움직이지도 부서지지도 않는 지형(고원, 벽)
     this.rocksGroup = this.physics.add.staticGroup();
-    // 맵 양 끝의 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다(바위와 같이 충돌).
+    // 맵 양 끝의 보이지 않는 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다(바위와 같이 충돌).
     (MAP.walls || []).forEach((w) => {
-      const wall = this.add.rectangle(w.x, w.y, w.w, w.h, 0x3b342d).setStrokeStyle(3, 0x241f1a).setDepth(1);
+      const wall = this.add.rectangle(w.x, w.y, w.w, w.h).setVisible(false); // 충돌만 하고 화면에는 안 보임
       this.rocksGroup.add(wall);
     });
     mapData.blocks.forEach((b) => {
@@ -142,7 +152,9 @@ class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.blocksGroup, this.blocksGroup);
 
     // ---- 새(투사체) ----
-    this.bird = this.physics.add.sprite(this.anchor.x, this.anchor.y, "bird");
+    // 텍스처를 늘리면 흐려지므로 도형(원)으로 그려서 어떤 해상도에서도 선명하게 한다.
+    this.bird = this.add.circle(this.anchor.x, this.anchor.y, 18, 0xe24b4a).setStrokeStyle(2, 0x791f1f);
+    this.physics.add.existing(this.bird);
     this.bird.body.setCircle(18);
     this.bird.body.setAllowGravity(false);
     this.bird.body.setBounce(0.35);
@@ -215,6 +227,7 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(10).setVisible(false);
 
     this.drawFork();
+    sharpenScene(this);
     this.playIntroPan();
   }
 
@@ -373,7 +386,7 @@ class GameScene extends Phaser.Scene {
 
     this.bird.body.moves = true;
     this.bird.body.setAllowGravity(true);
-    this.bird.setVelocity(Math.cos(angle) * power, Math.sin(angle) * power);
+    this.bird.body.setVelocity(Math.cos(angle) * power, Math.sin(angle) * power);
 
     this.isFlying = true;
     this.flightTime = 0;
@@ -510,10 +523,11 @@ function createGame() {
     gameInstance = null;
   }
 
+  RES = pickResolution();
   const config = {
     type: Phaser.AUTO,
-    width: VIEW_W,
-    height: VIEW_H,
+    width: VIEW_W * RES,
+    height: VIEW_H * RES,
     parent: "game-container",
     // 브라우저 창에 맞춰 비율을 유지한 채 최대한 크게 키운다(게임 좌표는 VIEW_W x VIEW_H 그대로).
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },

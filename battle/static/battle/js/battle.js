@@ -35,6 +35,31 @@ const SIDE_COLOR = { 1: 0x4a8fe2, 2: 0xe24b4a };
 let gameInstance = null;
 let controlMode = "mouse";
 
+// ---- 선명한 화면 ----
+// 캔버스를 화면에 보이는 크기 x 기기 픽셀 비율만큼 큰 해상도(RES배)로 만들고,
+// 카메라를 RES배 확대해서 게임 좌표는 그대로 VIEW_W x VIEW_H로 쓴다.
+// (작은 캔버스를 늘려서 흐릿하게 보이던 것을 해결. 너무 무거워지지 않게 최대 3배)
+let RES = 1;
+
+function pickResolution() {
+  const box = document.getElementById("game-container").getBoundingClientRect();
+  const fit = Math.min(box.width / VIEW_W, box.height / VIEW_H) || 1;
+  const want = fit * (window.devicePixelRatio || 1);
+  return Math.min(3, Math.max(1, Math.ceil(want * 4) / 4)); // 0.25 단위라 캔버스 크기가 정수로 떨어진다
+}
+
+// create()의 마지막에 부른다. 화면 고정 UI(scrollFactor 0)는 카메라 확대의 영향을
+// 받으므로 컨테이너에 모아 확대 중심만큼 옮겨 두고(그래서 UI 좌표도 VIEW_W x VIEW_H 기준),
+// 글자는 RES배 해상도로 그려서 흐려지지 않게 한다.
+function sharpenScene(scene) {
+  const hud = scene.add.container((VIEW_W / 2) * (RES - 1), (VIEW_H / 2) * (RES - 1))
+    .setScrollFactor(0).setDepth(10);
+  scene.children.list.slice().forEach((obj) => {
+    if (obj.type === "Text") obj.setResolution(RES);
+    if (obj !== hud && obj.scrollFactorX === 0 && obj.scrollFactorY === 0) hud.add(obj);
+  });
+}
+
 // ---- 서버와 주고받는 상태 ----
 let ws = null;
 let mySlot = null;
@@ -62,16 +87,6 @@ class BattleScene extends Phaser.Scene {
     super("BattleScene");
   }
 
-  preload() {
-    const g = this.add.graphics();
-    g.fillStyle(0xe24b4a, 1);
-    g.fillCircle(18, 18, 18);
-    g.lineStyle(2, 0x791f1f, 1);
-    g.strokeCircle(18, 18, 18);
-    g.generateTexture("bird", 36, 36);
-    g.destroy();
-  }
-
   create() {
     this.isDragging = false;
     this.isFlying = false;
@@ -95,6 +110,7 @@ class BattleScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
+    cam.setZoom(RES); // 캔버스가 RES배 크므로 확대해서 보이는 범위는 VIEW_W x VIEW_H로 유지
     cam.setBackgroundColor("#87b8d6");
 
     this.drawBackground();
@@ -129,9 +145,9 @@ class BattleScene extends Phaser.Scene {
 
     // ---- 지형(바위)과 블록 ----
     this.rocksGroup = this.physics.add.staticGroup();
-    // 맵 양 끝의 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다(바위와 같이 충돌).
+    // 맵 양 끝의 보이지 않는 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다(바위와 같이 충돌).
     (MAP.walls || []).forEach((w) => {
-      const wall = this.add.rectangle(w.x, w.y, w.w, w.h, 0x3b342d).setStrokeStyle(3, 0x241f1a).setDepth(1);
+      const wall = this.add.rectangle(w.x, w.y, w.w, w.h).setVisible(false); // 충돌만 하고 화면에는 안 보임
       this.rocksGroup.add(wall);
     });
     MAP.blocks.filter((b) => b.type === "rock").forEach((b) => {
@@ -150,7 +166,9 @@ class BattleScene extends Phaser.Scene {
     );
 
     // ---- 새 ----
-    this.bird = this.physics.add.sprite(this.anchor.x, this.anchor.y, "bird");
+    // 텍스처를 늘리면 흐려지므로 도형(원)으로 그려서 어떤 해상도에서도 선명하게 한다.
+    this.bird = this.add.circle(this.anchor.x, this.anchor.y, 18, 0xe24b4a).setStrokeStyle(2, 0x791f1f);
+    this.physics.add.existing(this.bird);
     this.bird.body.setCircle(18);
     this.bird.body.setAllowGravity(false);
     this.bird.body.setBounce(0.35);
@@ -210,6 +228,7 @@ class BattleScene extends Phaser.Scene {
       align: "center",
     }).setOrigin(0.5).setScrollFactor(0).setDepth(10).setVisible(false);
 
+    sharpenScene(this);
     this.cameras.main.centerOn(this.slingCameraCenter(1).x, this.slingCameraCenter(1).y);
     this.ready = true;
     this.applyState();
@@ -407,7 +426,7 @@ class BattleScene extends Phaser.Scene {
     this.bird.setPosition(this.anchor.x, this.anchor.y);
     this.bird.body.moves = true;
     this.bird.body.setAllowGravity(true);
-    this.bird.setVelocity(vx, vy);
+    this.bird.body.setVelocity(vx, vy);
     this.isFlying = true;
     this.flightTime = 0;
     this.settleTimer = 0;
@@ -617,10 +636,11 @@ function renderPlayers() {
 // 게임 / 조작 모드
 // ------------------------------------------------------------------
 function createGame() {
+  RES = pickResolution();
   gameInstance = new Phaser.Game({
     type: Phaser.AUTO,
-    width: VIEW_W,
-    height: VIEW_H,
+    width: VIEW_W * RES,
+    height: VIEW_H * RES,
     parent: "game-container",
     // 브라우저 창에 맞춰 비율을 유지한 채 최대한 크게 키운다(게임 좌표는 VIEW_W x VIEW_H 그대로).
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
