@@ -16,6 +16,12 @@ DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
 ALLOWED_HOSTS = ["throwmotion.onrender.com", "127.0.0.1", "localhost"]
 
+# Render는 HTTPS를 앞단 프록시에서 처리하고 서버(daphne)에는 HTTP로 넘긴다.
+# 프록시가 붙여 주는 X-Forwarded-Proto를 믿어야 Django가 HTTPS 요청으로 인식해서
+# 로그인/회원가입 POST의 CSRF Origin 검사를 통과한다.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = ["https://throwmotion.onrender.com"]
+
 INSTALLED_APPS = [
     # daphne가 맨 앞에 있어야 runserver도 WebSocket(ASGI)을 지원한다.
     "daphne",

@@ -117,8 +117,8 @@ Render Web Service로 배포되어 있습니다.
 - DB는 SQLite(`db.sqlite3`)라서 **Render가 다시 배포하거나 재시작하면 가입한 계정과 전적이 사라집니다.**
   계속 남기려면 Render PostgreSQL 같은 영구 DB로 바꿔야 합니다.
 - 정적 파일은 WhiteNoise가 `staticfiles/`에서 제공합니다.
-- 허용 도메인은 `slingshot_game/settings.py`의 `ALLOWED_HOSTS`에 있습니다.
-  도메인이 바뀌면 여기에 추가해야 합니다.
+- 허용 도메인은 `slingshot_game/settings.py`의 `ALLOWED_HOSTS`와 `CSRF_TRUSTED_ORIGINS`에 있습니다.
+  도메인이 바뀌면 두 곳 모두 추가해야 합니다(안 하면 로그인/회원가입이 403 에러).
 - `main`에 푸시하면 Render가 자동으로 다시 배포합니다 (Render 설정에서 Auto-Deploy가 켜져 있는 경우).
 
 ## 폴더 구조
