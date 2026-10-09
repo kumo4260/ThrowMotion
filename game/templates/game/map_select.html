@@ -1,0 +1,62 @@
+{% extends "game/base.html" %}
+{% block title %}맵 선택 - 새총 대전{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block extra_style %}
+  .page-head { margin: 32px 0 8px; }
+  .page-head p { color: #9aa3b2; margin: 4px 0 0; }
+  h2.section { font-size: 15px; color: #c9d1dd; margin: 28px 0 12px; }
+  .maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .maps.wide-cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr)); }
+  .map-card {
+    display: flex; flex-direction: column;
+    background: #12151b; border: 1px solid #2c313c; border-radius: 8px;
+    overflow: hidden; color: #eee; text-decoration: none;
+  }
+  .map-card:hover { border-color: #ffb020; }
+  .map-card svg { display: block; width: 100%; height: auto; background: #87b8d6; }
+  .map-card .body { padding: 12px 14px 14px; }
+  .map-card h3 { margin: 0 0 4px; font-size: 16px; }
+  .map-card .desc { margin: 0 0 10px; font-size: 13px; color: #9aa3b2; line-height: 1.5; }
+  .map-card .meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+  .tag { background: #2c313c; border-radius: 4px; padding: 2px 8px; }
+  .tag.diff { background: #ffb020; color: #1b1f27; font-weight: bold; }
+  .tag.clear { background: #1c2e22; color: #8fe0a5; }
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>맵 선택</h1>
+  <p>플레이할 맵을 고르세요. 대형 맵은 화면보다 넓어서 카메라가 새를 따라갑니다.</p>
+</div>
+
+{% for group in groups %}
+<h2 class="section">{{ group.title }}</h2>
+<div class="maps {{ group.css }}">
+  {% for m in group.maps %}
+  <a class="map-card" href="{% url 'play' m.id %}" data-map-id="{{ m.id }}">
+    <svg viewBox="0 {{ m.preview_top }} {{ m.width }} {{ m.preview_h }}" preserveAspectRatio="xMidYMid meet" aria-label="{{ m.name }} 미리보기">
+      <rect x="0" y="{{ m.ground_y }}" width="{{ m.width }}" height="40" fill="#4a3a2c"/>
+      <circle cx="{{ m.slingAnchor.x }}" cy="{{ m.slingAnchor.y }}" r="18" fill="#e24b4a"/>
+      {% for b in m.preview_blocks %}
+        {% if b.type == "pig" %}
+          <circle cx="{{ b.x }}" cy="{{ b.y }}" r="{{ b.r }}" fill="#63b04a"/>
+        {% else %}
+          <rect x="{{ b.left }}" y="{{ b.top }}" width="{{ b.w }}" height="{{ b.h }}" fill="{{ b.fill }}"/>
+        {% endif %}
+      {% endfor %}
+    </svg>
+    <div class="body">
+      <h3>{{ m.name }}</h3>
+      <p class="desc">{{ m.description }}</p>
+      <div class="meta">
+        <span class="tag diff">{{ m.difficulty }}</span>
+        <span class="tag">새 {{ m.birdCount }}마리</span>
+        <span class="tag">돼지 {{ m.pigs }}마리</span>
+        <span class="tag">{{ m.width }}×{{ m.height }}</span>
+        {% if m.wins %}<span class="tag clear">클리어 {{ m.wins }}회</span>{% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endfor %}
+{% endblock %}

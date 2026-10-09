@@ -2,7 +2,7 @@
 
 현재 버전은 1~3주차 목표 중 아래 부분을 구현한 **임시 테스트 빌드**입니다.
 
-- 임시 맵 2개 (기본 피라미드 / 트윈 타워)
+- 대형 맵 4개(연습 맵보다 가로 3배) + 연습 맵 2개 (기본 피라미드 / 트윈 타워)
 - Phaser.js Arcade Physics 기반 블록 파괴 물리 연산
 - **웹캠/MediaPipe 대신 마우스 드래그**로 새총(슬링샷) 당기기(Grab)/발사(Release) 조작
 - 조준선(가이드 라인) + 발사 궤적 미리보기
@@ -28,7 +28,8 @@ python manage.py runserver
 
 1. 화면 왼쪽의 빨간 새를 마우스로 클릭한 채 당깁니다(최대 당김 거리 제한 있음).
 2. 마우스를 놓으면 당긴 방향의 반대쪽으로 발사됩니다.
-3. 상단 버튼으로 맵 전환(맵1/맵2) 및 다시하기가 가능합니다.
+3. 상단 버튼으로 다시하기, 맵 선택 화면으로 돌아가기가 가능합니다.
+4. 대형 맵에서는 카메라가 날아가는 새를 따라갑니다. 방향키(←/→)나 마우스 휠로 맵을 둘러보고, 스페이스로 새총 위치로 돌아옵니다.
 
 ## 폴더 구조
 
@@ -38,11 +39,12 @@ slingshot_game/
 ├── requirements.txt
 ├── slingshot_game/        # Django 프로젝트 설정 (settings, urls)
 └── game/                  # 게임 앱
-    ├── views.py            # 게임 화면 렌더링
+    ├── maps.py             # 맵 데이터 (대형 맵 4개 + 연습 맵 2개)
+    ├── views.py            # 메인 / 맵 선택 / 게임 화면
     ├── urls.py
-    ├── templates/game/index.html
+    ├── templates/game/     # base, home, map_select, index(게임)
     └── static/game/js/
-        ├── maps.js         # 임시 맵 2개 데이터
+        ├── hand_control.js # 캠(MediaPipe Hands) 조작
         └── game.js         # Phaser 게임 로직 (물리, 슬링샷, 승패 판정)
 ```
 
@@ -54,6 +56,15 @@ slingshot_game/
 - 4주차 이후 백엔드 작업(회원가입/전적 API)은 `game` 앱 옆에 `accounts`,
   `matches` 같은 앱을 추가해 확장하면 기존 구조를 그대로 재사용할 수 있습니다.
 
+## 페이지 흐름
+
+메인(`/`) → 로그인/회원가입(`/accounts/login/`, `/accounts/signup/`) → 맵 선택(`/maps/`) → 게임(`/play/<맵 id>/`)
+
+- 맵 선택과 게임 화면은 로그인이 필요합니다. 로그인하지 않고 들어가면 로그인 화면으로 보내고, 로그인 후 원래 가려던 화면으로 돌아옵니다.
+- 맵 데이터는 `game/maps.py` 한 곳에 있고, 게임 화면에는 선택한 맵만 JSON으로 넘깁니다.
+  맵 id: `meadow`(초원 마을), `canyon`(바위 협곡), `cliff`(절벽 위의 성), `fortress`(최종 요새), `practice-1`, `practice-2`
+- 블록 종류: `wood`(hp1), `stone`(hp2), `pig`(목표), `rock`(움직이지 않고 부서지지 않는 지형)
+
 ## 회원가입 / 로그인 / 전적 (accounts, matches 앱)
 
 - `accounts` 앱: `/accounts/signup/` 회원가입, `/accounts/login/` 로그인, `/accounts/logout/` 로그아웃(POST)
@@ -62,7 +73,7 @@ slingshot_game/
   - `POST /matches/record/` : `{"result": "win"|"lose", "map_name": "...", "shots_used": 3}` 저장 (로그인 필요, CSRF 토큰 필요)
   - `GET /matches/summary/` : 내 전적 집계 JSON `{"total", "wins", "losses"}`
   - `GET /matches/` : 내 전적 페이지
-- 로그인한 상태로 게임을 하면 승리/패배 시 결과가 자동으로 저장됩니다. 로그인하지 않아도 게임은 그대로 할 수 있습니다.
+- 게임 결과는 승리/패배 시 자동으로 저장되고, 맵 선택 화면에 맵별 클리어 횟수가 표시됩니다.
 
 테스트 실행:
 
