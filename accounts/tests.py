@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 User = get_user_model()
@@ -72,3 +72,24 @@ class NavTests(TestCase):
         res = self.client.get(reverse("home"))
         self.assertContains(res, "kumo")
         self.assertContains(res, reverse("mode_select"))
+
+
+class ProxyCsrfTests(TestCase):
+    """Render는 HTTPS를 앞단 프록시에서 끊고 서버에는 HTTP로 넘긴다(X-Forwarded-Proto: https)."""
+
+    def setUp(self):
+        User.objects.create_user("kumo", password=PASSWORD)
+
+    def test_login_over_https_behind_proxy_passes_origin_check(self):
+        client = Client(enforce_csrf_checks=True)
+        res = client.get(reverse("login"), HTTP_HOST="throwmotion.onrender.com", HTTP_X_FORWARDED_PROTO="https")
+        token = res.cookies["csrftoken"].value
+        res = client.post(
+            reverse("login"),
+            {"username": "kumo", "password": PASSWORD, "csrfmiddlewaretoken": token},
+            HTTP_HOST="throwmotion.onrender.com",
+            HTTP_X_FORWARDED_PROTO="https",
+            HTTP_ORIGIN="https://throwmotion.onrender.com",
+            HTTP_REFERER="https://throwmotion.onrender.com/accounts/login/",
+        )
+        self.assertEqual(res.status_code, 302)
