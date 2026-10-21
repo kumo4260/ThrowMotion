@@ -1,8 +1,26 @@
 {% extends "game/base.html" %}
 {% block title %}내 전적 - 새총 대전{% endblock %}
+{% block extra_style %}
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { text-align: center; padding: 18px; }
+  .stat .num { font-size: 30px; font-weight: bold; color: var(--accent-2); }
+  .stat .num.win { color: #8fe0a5; }
+  .stat .num.lose { color: #ffb3b3; }
+  .stat .label { color: var(--muted); font-size: 13px; }
+  .table-card { padding: 8px 0; overflow-x: auto; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 16px; }
+{% endblock %}
 {% block content %}
-<h1>{{ user.username }}님의 전적</h1>
-<p>총 {{ summary.total }}판 · 승리 {{ summary.wins }} · 패배 {{ summary.losses }}</p>
+<div class="page-head">
+  <h1>{{ user.username }}님의 전적</h1>
+  <p>총 {{ summary.total }}판 · 승리 {{ summary.wins }} · 패배 {{ summary.losses }}</p>
+</div>
+<div class="stats">
+  <div class="card stat"><div class="num">{{ summary.total }}</div><div class="label">전체 경기</div></div>
+  <div class="card stat"><div class="num win">{{ summary.wins }}</div><div class="label">승리</div></div>
+  <div class="card stat"><div class="num lose">{{ summary.losses }}</div><div class="label">패배</div></div>
+</div>
+<div class="card table-card">
 {% if matches %}
 <table>
   <thead>
@@ -13,13 +31,14 @@
     <tr>
       <td>{{ m.played_at|date:"Y-m-d H:i" }}</td>
       <td>{{ m.map_name|default:"-" }}</td>
-      <td>{{ m.get_result_display }}</td>
+      <td><span class="tag {{ m.result }}">{{ m.get_result_display }}</span></td>
       <td>{{ m.shots_used|default_if_none:"-" }}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p>아직 기록된 경기가 없습니다.</p>
+<p class="empty">아직 기록된 경기가 없습니다. <a href="{% url 'map_select' %}">첫 판을 시작해 보세요!</a></p>
 {% endif %}
+</div>
 {% endblock %}

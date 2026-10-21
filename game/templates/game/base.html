@@ -5,88 +5,184 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}새총 대전{% endblock %}</title>
 <style>
+  /* 모든 페이지가 같이 쓰는 색/간격. 게임 화면(index.html, room.html)도 같은 색을 쓴다. */
+  :root {
+    --bg: #12161f;
+    --bg-2: #0c0f15;
+    --panel: #1a1f2b;
+    --panel-2: #222937;
+    --line: #2d3545;
+    --text: #eef1f6;
+    --muted: #98a2b3;
+    --accent: #ffb020;
+    --accent-2: #ffd76a;
+    --green: #4bc86a;
+    --red: #ff7b7b;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: #1b1f27;
-    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background:
+      radial-gradient(1200px 500px at 50% -120px, #2a3550 0%, transparent 70%),
+      var(--bg);
+    color: var(--text);
     font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5;
   }
+  a { color: var(--accent); }
+
+  /* ---- 상단 내비게이션 ---- */
   nav {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(12, 15, 21, 0.85);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px;
+    height: 56px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 10px 16px;
-    background: #12151b;
-    border-bottom: 2px solid #2c313c;
+    gap: 6px;
     font-size: 14px;
   }
-  nav .brand { font-weight: bold; color: #ffd76a; text-decoration: none; font-size: 16px; }
+  nav .brand {
+    display: flex; align-items: center; gap: 8px;
+    flex: none;
+    margin-right: 18px;
+    font-weight: bold; font-size: 17px;
+    color: var(--accent-2); text-decoration: none;
+  }
+  nav .brand .logo {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ff8a7a, #e24b4a 60%, #9b2626);
+    box-shadow: 0 0 0 2px #791f1f;
+  }
+  nav .link {
+    flex: none; white-space: nowrap;
+    color: var(--muted); text-decoration: none;
+    padding: 6px 12px; border-radius: 8px;
+  }
+  nav .link:hover { color: var(--text); background: var(--panel); }
+  nav .link.active { color: var(--text); background: var(--panel-2); }
   nav .spacer { margin-left: auto; }
+  nav .user { color: var(--muted); margin-right: 6px; }
   nav form { margin: 0; }
-  nav button {
-    background: #2c313c;
-    color: #eee;
-    border: 1px solid #444b58;
-    border-radius: 6px;
-    padding: 4px 12px;
-    margin: 0;
-    font-weight: normal;
-    cursor: pointer;
-  }
-  main {
-    max-width: 420px;
-    margin: 48px auto;
+  nav .btn { flex: none; white-space: nowrap; margin: 0; padding: 6px 14px; font-size: 13px; }
+
+  /* ---- 본문 ---- */
+  main { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 20px 56px; }
+  main.narrow { max-width: 440px; padding-top: 56px; }
+  h1 { font-size: 26px; color: var(--accent-2); margin: 0 0 6px; }
+  .page-head { margin-bottom: 24px; }
+  .page-head p { color: var(--muted); margin: 0; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
     padding: 24px;
-    background: #12151b;
-    border: 1px solid #2c313c;
-    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   }
-  main.wide { max-width: 1040px; background: none; border: 0; padding: 0 16px; }
-  h1 { font-size: 20px; color: #ffd76a; margin-top: 0; }
-  a { color: #ffb020; }
-  label { display: block; margin-top: 12px; font-size: 13px; }
-  input { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 4px; }
-  .helptext, .errorlist { font-size: 12px; color: #9aa3b2; }
-  .errorlist { color: #ff7b7b; }
+  .muted { color: var(--muted); }
+
+  /* ---- 버튼 ---- */
   button, .btn {
-    display: inline-block;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     margin-top: 16px;
-    background: #ffb020;
+    background: linear-gradient(180deg, #ffc247, var(--accent));
     color: #1b1f27;
     border: 0;
-    border-radius: 6px;
-    padding: 8px 16px;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: inherit;
     font-weight: bold;
     font-size: 14px;
     text-decoration: none;
     cursor: pointer;
+    box-shadow: 0 2px 0 #b97a0d;
+    transition: transform 0.1s, filter 0.1s;
   }
-  .btn.secondary { background: #2c313c; color: #eee; border: 1px solid #444b58; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { padding: 6px; border-bottom: 1px solid #2c313c; text-align: left; }
+  button:hover, .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn.secondary, button.secondary {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); box-shadow: none;
+  }
+
+  /* ---- 폼 ---- */
+  form p { margin: 0 0 14px; }
+  label { display: block; margin-bottom: 6px; font-size: 13px; color: #c9d1dd; }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255, 176, 32, 0.2); }
+  .helptext, .helptext ul { display: block; margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+  .helptext ul { padding-left: 18px; }
+  .errorlist { list-style: none; padding: 0; margin: 0 0 6px; font-size: 12px; color: var(--red); }
+
+  /* ---- 표 / 태그 ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--muted); font-weight: normal; font-size: 12px; }
+  tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+  .tag { display: inline-block; background: var(--panel-2); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+  .tag.win { background: #1c3324; color: #8fe0a5; }
+  .tag.lose { background: #3a1f22; color: #ffb3b3; }
+
+  footer { text-align: center; color: #5d6676; font-size: 12px; padding: 20px; border-top: 1px solid var(--line); }
+
+  @media (max-width: 640px) {
+    nav .inner { padding: 0 12px; overflow-x: auto; }
+    nav .brand { margin-right: 4px; }
+    nav .brand span:not(.logo) { display: none; }
+    nav .link { padding: 6px 8px; }
+    nav .user { display: none; }
+    main { padding: 24px 16px 40px; }
+  }
   {% block extra_style %}{% endblock %}
 </style>
 </head>
 <body>
+{% with name=request.resolver_match.url_name %}
 <nav>
-  <a class="brand" href="{% url 'home' %}">새총 대전</a>
-  {% if user.is_authenticated %}
-    <a href="{% url 'map_select' %}">솔로 플레이</a>
-    <a href="{% url 'battle:lobby' %}">멀티플레이</a>
-    <a href="{% url 'matches:history' %}">내 전적</a>
-    <span class="spacer">{{ user.username }}</span>
-    <form method="post" action="{% url 'logout' %}">
-      {% csrf_token %}
-      <button type="submit">로그아웃</button>
-    </form>
-  {% else %}
-    <span class="spacer"></span>
-    <a href="{% url 'login' %}">로그인</a>
-    <a href="{% url 'signup' %}">회원가입</a>
-  {% endif %}
+  <div class="inner">
+    <a class="brand" href="{% url 'home' %}"><span class="logo"></span><span>새총 대전</span></a>
+    {% if user.is_authenticated %}
+      <a class="link {% if name == 'map_select' or name == 'mode_select' %}active{% endif %}" href="{% url 'map_select' %}">솔로 플레이</a>
+      <a class="link {% if name == 'lobby' %}active{% endif %}" href="{% url 'battle:lobby' %}">멀티플레이</a>
+      <a class="link {% if name == 'history' %}active{% endif %}" href="{% url 'matches:history' %}">내 전적</a>
+      <span class="spacer"></span>
+      <span class="user">{{ user.username }}</span>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn secondary">로그아웃</button>
+      </form>
+    {% else %}
+      <span class="spacer"></span>
+      <a class="link {% if name == 'login' %}active{% endif %}" href="{% url 'login' %}">로그인</a>
+      <a class="btn" href="{% url 'signup' %}">회원가입</a>
+    {% endif %}
+  </div>
 </nav>
+{% endwith %}
 <main class="{% block main_class %}{% endblock %}">
   {% block content %}{% endblock %}
 </main>
+<footer>ThrowMotion · 마우스 또는 웹캠 손 제스처로 즐기는 새총 게임</footer>
 </body>
 </html>

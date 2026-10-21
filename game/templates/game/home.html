@@ -2,42 +2,90 @@
 {% block title %}새총 대전{% endblock %}
 {% block main_class %}wide{% endblock %}
 {% block extra_style %}
-  .hero { text-align: center; padding: 56px 16px 32px; }
-  .hero h1 { font-size: 44px; margin-bottom: 8px; }
-  .hero p { color: #c9d1dd; font-size: 16px; line-height: 1.6; }
-  .hero .btn { margin: 20px 6px 0; padding: 12px 28px; font-size: 16px; }
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0 48px; }
-  .feature { background: #12151b; border: 1px solid #2c313c; border-radius: 8px; padding: 16px; }
-  .feature h2 { font-size: 16px; color: #ffd76a; margin: 0 0 8px; }
-  .feature p { margin: 0; color: #9aa3b2; font-size: 14px; line-height: 1.5; }
+  .hero {
+    display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: center;
+    padding: 32px 0 40px;
+  }
+  .hero h1 { font-size: 48px; line-height: 1.15; margin-bottom: 14px; }
+  .hero h1 .hl { color: var(--text); }
+  .hero p { color: #c9d1dd; font-size: 16px; line-height: 1.7; margin: 0; }
+  .hero .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .hero .actions .btn { margin: 0; padding: 12px 26px; font-size: 16px; }
+  .hero-art { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
+  .hero-art svg { display: block; width: 100%; height: auto; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .feature { padding: 20px; }
+  .feature .icon { font-size: 26px; }
+  .feature h2 { font-size: 16px; color: var(--accent-2); margin: 8px 0 6px; }
+  .feature p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  @media (max-width: 800px) {
+    .hero { grid-template-columns: 1fr; text-align: center; }
+    .hero h1 { font-size: 36px; }
+    .hero .actions { justify-content: center; }
+  }
 {% endblock %}
 {% block content %}
 <section class="hero">
-  <h1>새총 대전</h1>
-  <p>새총을 당겨 새를 날리고, 구조물 속에 숨은 돼지를 모두 쓰러뜨리세요.<br>
-     마우스로 당기거나, 웹캠 앞에서 주먹을 쥐었다 펴서 쏠 수 있습니다.</p>
-  {% if user.is_authenticated %}
-    <a class="btn" href="{% url 'mode_select' %}">게임 시작</a>
-    <a class="btn secondary" href="{% url 'matches:history' %}">내 전적</a>
-  {% else %}
-    <a class="btn" href="{% url 'login' %}">로그인하고 시작하기</a>
-    <a class="btn secondary" href="{% url 'signup' %}">회원가입</a>
-  {% endif %}
+  <div>
+    <h1>새총을 당겨<br><span class="hl">돼지를 쓰러뜨려라!</span></h1>
+    <p>새총으로 새를 날려 구조물 속에 숨은 돼지를 모두 쓰러뜨리세요.<br>
+       마우스로 당기거나, 웹캠 앞에서 주먹을 쥐었다 펴서 쏠 수 있습니다.</p>
+    <div class="actions">
+    {% if user.is_authenticated %}
+      <a class="btn" href="{% url 'mode_select' %}">게임 시작</a>
+      <a class="btn secondary" href="{% url 'matches:history' %}">내 전적</a>
+    {% else %}
+      <a class="btn" href="{% url 'login' %}">로그인하고 시작하기</a>
+      <a class="btn secondary" href="{% url 'signup' %}">회원가입</a>
+    {% endif %}
+    </div>
+  </div>
+  <div class="hero-art" aria-hidden="true">
+    <svg viewBox="0 0 480 300">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3f8fd8"/><stop offset="1" stop-color="#bfe6ff"/>
+        </linearGradient>
+      </defs>
+      <rect width="480" height="300" fill="url(#sky)"/>
+      <circle cx="390" cy="60" r="44" fill="#fff7d6" opacity="0.35"/>
+      <circle cx="390" cy="60" r="28" fill="#fff3b0"/>
+      <polygon points="0,260 70,150 130,220 200,120 270,210 340,140 420,230 480,170 480,300 0,300" fill="#9bbfdc"/>
+      <ellipse cx="120" cy="290" rx="220" ry="70" fill="#7cc36d"/>
+      <ellipse cx="400" cy="295" rx="200" ry="60" fill="#5aa84c"/>
+      <g fill="#fff" opacity="0.92"><circle cx="90" cy="60" r="18"/><circle cx="115" cy="52" r="24"/><circle cx="142" cy="62" r="16"/><rect x="74" y="60" width="84" height="16" rx="8"/></g>
+      <rect y="262" width="480" height="38" fill="#7a5232"/><rect y="258" width="480" height="8" fill="#5cbf47"/>
+      <rect x="76" y="200" width="10" height="60" rx="3" fill="#6b4423"/>
+      <path d="M81 205 L66 178 M81 205 L96 178" stroke="#7a4b25" stroke-width="8" stroke-linecap="round"/>
+      <path d="M96 178 L50 196 L66 178" stroke="#3a2312" stroke-width="4" fill="none"/>
+      <g transform="translate(46 196)"><circle r="15" fill="#791f1f"/><circle r="13.5" fill="#e24b4a"/><ellipse cy="7" rx="10" ry="6" fill="#f3dcc0"/><circle cx="4" cy="-3" r="4" fill="#fff"/><circle cx="5" cy="-3" r="1.8" fill="#111"/><path d="M9 0 L19 3 L9 6Z" fill="#f2b630"/></g>
+      <g fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" opacity="0.9"><path d="M100 170 Q220 40 330 170"/></g>
+      <rect x="320" y="210" width="14" height="50" fill="#c98a4b" stroke="#6e4520" stroke-width="2"/>
+      <rect x="396" y="210" width="14" height="50" fill="#c98a4b" stroke="#6e4520" stroke-width="2"/>
+      <rect x="312" y="198" width="106" height="12" fill="#8c929b" stroke="#41454c" stroke-width="2"/>
+      <g transform="translate(365 182)"><circle r="17" fill="#2f5e20"/><circle r="15" fill="#67b84c"/><circle cx="-6" cy="-3" r="3.5" fill="#fff"/><circle cx="6" cy="-3" r="3.5" fill="#fff"/><circle cx="-5.5" cy="-3" r="1.5" fill="#1d2b18"/><circle cx="6.5" cy="-3" r="1.5" fill="#1d2b18"/><ellipse cy="6" rx="6.5" ry="4.5" fill="#9be07a"/></g>
+      <g transform="translate(365 240)"><circle r="14" fill="#2f5e20"/><circle r="12.5" fill="#67b84c"/><circle cx="-5" cy="-3" r="3" fill="#fff"/><circle cx="5" cy="-3" r="3" fill="#fff"/><ellipse cy="5" rx="5.5" ry="3.8" fill="#9be07a"/></g>
+    </svg>
+  </div>
 </section>
 <section class="features">
-  <div class="feature">
+  <div class="card feature">
+    <div class="icon">🗺️</div>
     <h2>넓어진 대형 맵 4종</h2>
     <p>연습 맵보다 3배 넓은 맵에서 카메라가 새를 따라갑니다. 방향키나 마우스 휠로 맵을 둘러볼 수 있어요.</p>
   </div>
-  <div class="feature">
+  <div class="card feature">
+    <div class="icon">✊</div>
     <h2>마우스 / 캠 모드</h2>
     <p>마우스로 새를 끌어 당기거나, 캠 모드에서 주먹을 쥐어 당기고 손을 펴서 발사하세요.</p>
   </div>
-  <div class="feature">
+  <div class="card feature">
+    <div class="icon">⚔️</div>
     <h2>1대1 요새전</h2>
     <p>맵 양 끝에 각자의 요새를 두고 친구와 번갈아 쏩니다. 상대 돼지를 먼저 모두 쓰러뜨리면 승리!</p>
   </div>
-  <div class="feature">
+  <div class="card feature">
+    <div class="icon">🏆</div>
     <h2>내 전적 기록</h2>
     <p>로그인하면 판마다 승패와 사용한 새 수가 저장됩니다.</p>
   </div>

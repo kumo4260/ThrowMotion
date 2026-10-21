@@ -9,8 +9,8 @@
   html, body {
     margin: 0;
     padding: 0;
-    background: #1b1f27;
-    color: #eee;
+    background: #12161f;
+    color: #eef1f6;
     font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     overflow: hidden;
   }
@@ -25,38 +25,49 @@
     flex-wrap: wrap;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 16px;
-    background: #12151b;
-    border-bottom: 2px solid #2c313c;
+    gap: 10px;
+    padding: 8px 16px;
+    min-height: 56px;
+    box-sizing: border-box;
+    background: rgba(12, 15, 21, 0.95);
+    border-bottom: 1px solid #2d3545;
   }
   #ui-bar h1 {
     font-size: 16px;
-    margin: 0;
-    margin-right: 12px;
+    margin: 0 8px 0 0;
   }
-  #ui-bar h1 a { color: #ffd76a; text-decoration: none; }
+  #ui-bar h1 a { display: flex; align-items: center; gap: 8px; color: #ffd76a; text-decoration: none; }
+  #ui-bar h1 .logo {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ff8a7a, #e24b4a 60%, #9b2626);
+    box-shadow: 0 0 0 2px #791f1f;
+  }
+  #ui-bar .sep { width: 1px; height: 22px; background: #2d3545; }
   #ui-bar a.nav-btn {
-    color: #eee;
+    color: #c9d1dd;
     text-decoration: none;
-    border: 1px solid #444b58;
-    border-radius: 6px;
-    padding: 5px 12px;
+    border-radius: 8px;
+    padding: 6px 12px;
     font-size: 13px;
   }
-  #ui-bar a.nav-btn:hover { background: #3a4152; }
-  #map-title { font-weight: bold; color: #ffd76a; font-size: 14px; }
+  #ui-bar a.nav-btn:hover { background: #222937; color: #eef1f6; }
+  #map-title { font-weight: bold; color: #eef1f6; font-size: 14px; }
   #ui-bar button {
-    background: #2c313c;
-    color: #eee;
-    border: 1px solid #444b58;
-    border-radius: 6px;
+    background: #222937;
+    color: #eef1f6;
+    border: 1px solid #2d3545;
+    border-radius: 8px;
     padding: 6px 14px;
+    font-family: inherit;
     font-size: 13px;
     cursor: pointer;
   }
-  #ui-bar button:hover { background: #3a4152; }
+  #ui-bar button:hover { background: #2d3545; }
   #ui-bar button.active { background: #ffb020; color: #1b1f27; font-weight: bold; }
+  /* 마우스/캠 모드 전환은 붙어 있는 토글 버튼 한 묶음 */
+  #ui-bar .toggle { display: inline-flex; padding: 3px; background: #0c0f15; border: 1px solid #2d3545; border-radius: 10px; }
+  #ui-bar .toggle button { border: 0; background: none; color: #98a2b3; border-radius: 7px; }
+  #ui-bar .toggle button.active { background: #4bc86a; color: #10241a; font-weight: bold; }
   /* Phaser(Scale.FIT)가 이 영역에 맞춰 캔버스를 비율 유지로 키우고 가운데 둔다. */
   #game-container {
     flex: 1;
@@ -67,31 +78,24 @@
   #note {
     margin-left: auto;
     font-size: 12px;
-    color: #9aa3b2;
-  }
-  #ui-bar button.mode-btn {
-    background: #1c2e22;
-    border-color: #2f5e3a;
-  }
-  #ui-bar button.mode-btn.active {
-    background: #4bc86a;
-    color: #10241a;
+    color: #98a2b3;
   }
   #game-container {
     position: relative;
   }
   #cam-box {
     position: fixed;
-    top: 64px;
+    top: 72px;
     right: 16px;
     width: 220px;
     display: none;
     flex-direction: column;
     gap: 6px;
-    background: #12151b;
-    border: 1px solid #2c313c;
-    border-radius: 8px;
+    background: rgba(12, 15, 21, 0.92);
+    border: 1px solid #2d3545;
+    border-radius: 12px;
     padding: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
     z-index: 10;
   }
   #cam-video-wrap {
@@ -135,12 +139,15 @@
 <body>
 
 <div id="ui-bar">
-  <h1><a href="{% url 'home' %}">새총 대전</a></h1>
+  <h1><a href="{% url 'home' %}"><span class="logo"></span>새총 대전</a></h1>
   <a class="nav-btn" href="{% url 'battle:lobby' %}">← 로비</a>
   <span>방 코드 <span id="room-code">{{ room_code }}</span></span>
   <span id="players"></span>
-  <button id="mouse-mode-btn" class="mode-btn active">마우스 모드</button>
-  <button id="cam-mode-btn" class="mode-btn">캠 모드</button>
+  <span class="sep"></span>
+  <span class="toggle">
+    <button id="mouse-mode-btn" class="mode-btn active">마우스 모드</button>
+    <button id="cam-mode-btn" class="mode-btn">캠 모드</button>
+  </span>
   <span id="note">상대를 기다리는 중...</span>
   <span id="account-box">{{ user.username }}</span>
 </div>
