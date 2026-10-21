@@ -83,22 +83,26 @@ class GameScene extends Phaser.Scene {
     cam.setZoom(RES); // 캔버스가 RES배 크므로 확대해서 보이는 범위는 VIEW_W x VIEW_H로 유지
     cam.setBackgroundColor("#87b8d6");
 
-    // ---- 배경 ----
+    // ---- 배경(맵마다 다른 테마, visuals.js) ----
+    this.theme = themeFor(mapData.id);
     this.drawBackground();
+    createFx(this);
+    this.score = 0;
 
-    // 바닥: 맵 너비 전체를 덮는 정적 물리 바디
+    // 바닥: 맵 너비 전체를 덮는 정적 물리 바디 + 흙/잔디 스킨
     const ground = this.add.rectangle(WORLD_W / 2, WORLD_H - GROUND_HEIGHT / 2, WORLD_W, GROUND_HEIGHT, 0x4a3a2c);
     addStaticBox(this, ground.x, ground.y, WORLD_W, GROUND_HEIGHT, ground);
+    drawGround(this, this.theme, WORLD_W, GROUND_Y, GROUND_HEIGHT);
 
     // 맵 양 끝의 보이지 않는 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다.
     const inner = addEndWalls(this, MAP.walls, WORLD_W);
     this.innerL = inner.innerL;
     this.innerR = inner.innerR;
 
-    // ---- 새총 기둥(비주얼) ----
+    // ---- 새총(기둥 + 뒤쪽 가지, 앞쪽 가지는 새보다 앞에 그린다) ----
     this.anchor = mapData.slingAnchor;
-    this.add.rectangle(this.anchor.x, (GROUND_Y + this.anchor.y + 10) / 2, 10, GROUND_Y - this.anchor.y + 10, 0x5b3a20);
-    this.forkGfx = this.add.graphics();
+    drawSlingBack(this, this.anchor, GROUND_Y);
+    this.waitingBirds = this.add.graphics().setDepth(2);
 
     // ---- 블록 / 돼지 ----
     // Shape 게임오브젝트(Rectangle/Circle)를 맵 데이터의 실제 크기로 만들고 Matter 바디를 붙인다.
@@ -108,6 +112,7 @@ class GameScene extends Phaser.Scene {
         // 'rock'은 움직이지도 부서지지도 않는 지형(고원, 벽)
         const rock = this.add.rectangle(b.x, b.y, b.w, b.h, 0x5b5148).setStrokeStyle(2, 0x3a332c);
         addStaticBox(this, b.x, b.y, b.w, b.h, rock);
+        skinBlock(this, rock, b, this.theme);
         return;
       }
       let obj;
@@ -121,6 +126,7 @@ class GameScene extends Phaser.Scene {
       attachBlockBody(this, obj, b, 0);
       obj.setData("type", b.type);
       obj.setData("hp", b.type === "stone" ? 2 : 1);
+      skinBlock(this, obj, b, this.theme);
       this.blocks.push(obj);
     });
 
@@ -128,8 +134,13 @@ class GameScene extends Phaser.Scene {
 
     // ---- 새(투사체) ----
     // 텍스처를 늘리면 흐려지므로 도형(원)으로 그려서 어떤 해상도에서도 선명하게 한다.
-    this.bird = this.add.circle(this.anchor.x, this.anchor.y, 18, 0xe24b4a).setStrokeStyle(2, 0x791f1f);
+    // 새 모양(눈, 부리, 깃털)은 스킨으로 덧그리고, 고무줄은 새 앞뒤로 나눠 그린다.
+    createBands(this);
+    this.bird = this.add.circle(this.anchor.x, this.anchor.y, 18, 0xe24b4a).setStrokeStyle(2, 0x791f1f).setDepth(3);
     addBirdBody(this, this.bird, 18);
+    skinBird(this, this.bird, 18);
+    createFrontBand(this);
+    drawSlingFront(this, this.anchor);
     this.birdTouchedAt = -1;
 
     // 부딪힌 순간의 속도로 블록 데미지를 계산한다(새에 맞든, 떨어지든, 깔리든).
@@ -178,62 +189,42 @@ class GameScene extends Phaser.Scene {
     });
 
     // ---- UI 텍스트 (카메라가 움직여도 화면에 고정) ----
-    this.infoText = this.add.text(16, 16, "", {
-      fontSize: "16px",
-      fontFamily: "Malgun Gothic, sans-serif",
-      color: "#ffffff",
-      backgroundColor: "#00000055",
-      padding: { x: 8, y: 4 },
-    }).setScrollFactor(0).setDepth(10);
+    this.infoText = this.add.text(16, 16, "", hudStyle(16, { lineSpacing: 4 })).setScrollFactor(0).setDepth(10);
     this.updateInfoText();
 
     if (WORLD_W > VIEW_W || WORLD_H > VIEW_H) {
-      this.add.text(VIEW_W - 16, 16, "← → 방향키 / 휠: 맵 둘러보기   스페이스: 새총으로", {
-        fontSize: "13px",
-        fontFamily: "Malgun Gothic, sans-serif",
-        color: "#ffffff",
-        backgroundColor: "#00000055",
-        padding: { x: 8, y: 4 },
-      }).setOrigin(1, 0).setScrollFactor(0).setDepth(10);
+      this.add.text(VIEW_W - 16, 16, "← → 방향키 / 휠: 맵 둘러보기   스페이스: 새총으로",
+        hudStyle(13, { fontStyle: "normal", color: "#dfe7f5" })).setOrigin(1, 0).setScrollFactor(0).setDepth(10);
     }
 
-    this.messageText = this.add.text(VIEW_W / 2, VIEW_H / 2, "", {
-      fontSize: "40px",
-      fontFamily: "Malgun Gothic, sans-serif",
+    this.messageText = this.add.text(VIEW_W / 2, VIEW_H / 2, "", hudStyle(40, {
       color: "#ffd76a",
-      backgroundColor: "#00000099",
-      padding: { x: 20, y: 12 },
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(10).setVisible(false);
+      backgroundColor: "#0d1526dd",
+      padding: { x: 28, y: 18 },
+      align: "center",
+      stroke: "#5a3300",
+      strokeThickness: 6,
+    })).setOrigin(0.5).setScrollFactor(0).setDepth(10).setVisible(false);
 
-    this.drawFork();
     sharpenScene(this);
+    this.cameras.main.fadeIn(450, 0, 0, 0);
     this.playIntroPan();
   }
 
-  // 하늘 위 구름/언덕(시차 스크롤)과 바닥의 거리 눈금. 넓은 맵에서
+  // 하늘/해/산/구름/언덕(시차 스크롤, visuals.js)과 바닥의 거리 눈금. 넓은 맵에서
   // 카메라가 움직이고 있다는 느낌과 거리 감각을 준다.
   drawBackground() {
-    const far = this.add.graphics().setScrollFactor(0.3, 1);
-    far.fillStyle(0x9cc7a0, 1);
-    for (let x = -200; x < WORLD_W; x += 520) {
-      far.fillEllipse(x + 260, GROUND_Y + 20, 700, 260);
-    }
-
-    const clouds = this.add.graphics().setScrollFactor(0.15, 0.6);
-    clouds.fillStyle(0xffffff, 0.75);
-    for (let i = 0, x = 120; x < WORLD_W; i++, x += 430) {
-      const y = 70 + ((i * 97) % 160);
-      clouds.fillEllipse(x, y, 140, 44);
-      clouds.fillEllipse(x + 50, y - 14, 90, 40);
-    }
+    drawScenery(this, this.theme, WORLD_W, WORLD_H, GROUND_Y);
 
     if (WORLD_W > VIEW_W) {
       for (let x = 500; x < WORLD_W; x += 500) {
         this.add.text(x, GROUND_Y + 12, `${x}`, {
           fontSize: "12px",
           fontFamily: "sans-serif",
-          color: "#d9c3a5",
-        }).setOrigin(0.5, 0).setDepth(1);
+          color: "#f3e3c8",
+          stroke: "#3a2616",
+          strokeThickness: 3,
+        }).setOrigin(0.5, 0).setDepth(1).setAlpha(0.8);
       }
     }
   }
@@ -311,22 +302,9 @@ class GameScene extends Phaser.Scene {
     this.launchBird();
   }
 
-  drawFork() {
-    this.forkGfx.clear();
-    this.forkGfx.lineStyle(6, 0x5b3a20, 1);
-    this.forkGfx.lineBetween(this.anchor.x - 14, this.anchor.y + 30, this.anchor.x, this.anchor.y);
-    this.forkGfx.lineBetween(this.anchor.x + 14, this.anchor.y + 30, this.anchor.x, this.anchor.y);
-  }
-
+  // 당긴 방향은 고무줄(visuals.js)이 보여 주므로 여기서는 궤적 미리보기만 그린다.
   drawAim(px, py) {
-    this.aimLine.clear();
-    this.aimLine.lineStyle(3, 0xffffff, 0.85);
-    this.aimLine.beginPath();
-    this.aimLine.moveTo(this.anchor.x, this.anchor.y);
-    this.aimLine.lineTo(px, py);
-    this.aimLine.strokePath();
-
-    // 발사 궤적 미리보기(점선 점들)
+    // 발사 궤적 미리보기(점점 작아지고 흐려지는 점들)
     this.trajectoryDots.clear();
     const dx = this.anchor.x - px;
     const dy = this.anchor.y - py;
@@ -337,13 +315,15 @@ class GameScene extends Phaser.Scene {
     const vy = Math.sin(angle) * power;
     const gravity = GRAVITY;
 
-    this.trajectoryDots.fillStyle(0xffffff, 0.7);
-    for (let i = 1; i <= 8; i++) {
-      const t = i * 0.09;
+    for (let i = 1; i <= 10; i++) {
+      const t = i * 0.08;
       const x = this.anchor.x + vx * t;
       const y = this.anchor.y + vy * t + 0.5 * gravity * t * t;
       if (y > GROUND_Y) break;
-      this.trajectoryDots.fillCircle(x, y, 3);
+      this.trajectoryDots.fillStyle(0x000000, 0.25 * (1 - i / 12));
+      this.trajectoryDots.fillCircle(x + 1, y + 1.5, 5 - i * 0.3);
+      this.trajectoryDots.fillStyle(0xffffff, 0.95 * (1 - i / 12));
+      this.trajectoryDots.fillCircle(x, y, 5 - i * 0.3);
     }
   }
 
@@ -365,6 +345,7 @@ class GameScene extends Phaser.Scene {
     const angle = Math.atan2(dy, dx);
 
     releaseBird(this.bird, Math.cos(angle) * power, Math.sin(angle) * power);
+    launchFx(this, this.anchor.x, this.anchor.y);
 
     this.isFlying = true;
     this.flightTime = 0;
@@ -379,6 +360,7 @@ class GameScene extends Phaser.Scene {
     const [a, b] = pairObjects(pair);
     if (!a || !b || pair.isSensor) return;
     const speed = impactSpeed(pair);
+    if (a === this.bird || b === this.bird) hitFx(this, this.bird.x, this.bird.y, speed);
     [[a, b], [b, a]].forEach(([block, other]) => {
       if (!block.getData || !block.getData("type") || block.getData("dead")) return;
       const damage = impactDamage(block.getData("type"), speed, other === this.bird);
@@ -390,10 +372,15 @@ class GameScene extends Phaser.Scene {
     const hp = block.getData("hp") - damage;
     block.setData("hp", hp);
     if (hp > 0) {
-      block.setAlpha(0.75); // 금 간 돌
+      redrawSkin(block); // 금 간 돌
       return;
     }
-    const wasPig = block.getData("type") === "pig";
+    const type = block.getData("type");
+    const wasPig = type === "pig";
+    const points = { pig: 5000, stone: 800, wood: 500 }[type] || 500;
+    this.score += points;
+    breakFx(this, block, type);
+    floatText(this, block.x, block.y - 10, `+${points}`, wasPig ? "#ffd76a" : "#ffffff");
     this.blocks = this.blocks.filter((o) => o !== block);
     removeBlockWithFade(this, block);
     wakeAll(this.blocks);
@@ -407,8 +394,33 @@ class GameScene extends Phaser.Scene {
 
   updateInfoText() {
     this.infoText.setText(
-      `${this.mapData.name}\n남은 새: ${Math.max(this.shotsLeft, 0)}   남은 돼지: ${Math.max(this.pigsLeft, 0)}`
+      `${this.mapData.name}\n남은 새: ${Math.max(this.shotsLeft, 0)}   남은 돼지: ${Math.max(this.pigsLeft, 0)}\n점수: ${this.score.toLocaleString()}`
     );
+    this.drawWaitingBirds();
+  }
+
+  // 새총 뒤 바닥에 다음 차례를 기다리는 새들을 작게 그린다.
+  drawWaitingBirds() {
+    const g = this.waitingBirds.clear();
+    const waiting = Math.max(this.shotsLeft - (this.isFlying || this.isGameOver ? 0 : 1), 0);
+    for (let i = 0; i < waiting; i++) {
+      const x = this.anchor.x - 44 - i * 30;
+      if (x < this.innerL + 12) break;
+      g.fillStyle(0x000000, 0.25);
+      g.fillEllipse(x, GROUND_Y + 1, 22, 5);
+      g.fillStyle(0x791f1f, 1);
+      g.fillCircle(x, GROUND_Y - 11, 11);
+      g.fillStyle(0xe24b4a, 1);
+      g.fillCircle(x, GROUND_Y - 11, 10);
+      g.fillStyle(0xf3dcc0, 1);
+      g.fillEllipse(x + 1, GROUND_Y - 5, 14, 7);
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(x + 4, GROUND_Y - 13, 3);
+      g.fillStyle(0x111111, 1);
+      g.fillCircle(x + 5, GROUND_Y - 13, 1.4);
+      g.fillStyle(0xf2b630, 1);
+      g.fillTriangle(x + 8, GROUND_Y - 11, x + 14, GROUND_Y - 9, x + 8, GROUND_Y - 7);
+    }
   }
 
   checkWinLose() {
@@ -416,7 +428,8 @@ class GameScene extends Phaser.Scene {
 
     if (this.pigsLeft <= 0) {
       this.isGameOver = true;
-      this.showMessage("승리! 모든 돼지를 제거했습니다.");
+      this.showMessage(`승리! 모든 돼지를 제거했습니다.\n점수 ${this.score.toLocaleString()}`);
+      confettiFx(this);
       this.reportResult("win");
     }
   }
@@ -442,6 +455,7 @@ class GameScene extends Phaser.Scene {
   showMessage(text) {
     this.messageText.setText(text + "\n(다시하기 또는 맵 선택을 눌러주세요)");
     this.messageText.setVisible(true);
+    popIn(this, this.messageText);
   }
 
   update(time, delta) {
@@ -454,6 +468,7 @@ class GameScene extends Phaser.Scene {
 
     if (this.isFlying) {
       this.flightTime += delta;
+      trailFx(this, this.bird, this.flightTime);
       // 바닥/블록 위를 구르는 새는 구름 저항으로 멈추게 한다. (Matter의 원은 마찰만으로는
       // 계속 굴러가서, 넓은 맵에서는 화면 끝까지 한참 굴러가 다음 새를 쏠 수 없다)
       if (time - this.birdTouchedAt < 100) {
@@ -491,6 +506,7 @@ class GameScene extends Phaser.Scene {
     holdBird(this.bird);
     this.bird.setPosition(this.anchor.x, this.anchor.y);
     this.bird.setInteractive({ cursor: "grab" });
+    this.drawWaitingBirds();
   }
 }
 

@@ -106,10 +106,14 @@ class BattleScene extends Phaser.Scene {
     cam.setZoom(RES); // 캔버스가 RES배 크므로 확대해서 보이는 범위는 VIEW_W x VIEW_H로 유지
     cam.setBackgroundColor("#87b8d6");
 
-    this.drawBackground();
+    // 배경/바닥/연출은 솔로와 같은 visuals.js를 쓴다.
+    this.theme = themeFor(MAP.id);
+    drawScenery(this, this.theme, WORLD_W, WORLD_H, GROUND_Y);
+    createFx(this);
 
     const ground = this.add.rectangle(WORLD_W / 2, WORLD_H - GROUND_HEIGHT / 2, WORLD_W, GROUND_HEIGHT, 0x4a3a2c);
     addStaticBox(this, ground.x, ground.y, WORLD_W, GROUND_HEIGHT, ground);
+    drawGround(this, this.theme, WORLD_W, GROUND_Y, GROUND_HEIGHT);
 
     // 맵 양 끝의 보이지 않는 벽: 새와 블록이 맵 밖으로 나가지 못하게 막는다.
     const inner = addEndWalls(this, MAP.walls, WORLD_W);
@@ -119,12 +123,7 @@ class BattleScene extends Phaser.Scene {
     // ---- 새총 두 개(1P 왼쪽, 2P 오른쪽) ----
     this.slings = { 1: MAP.slings["1"], 2: MAP.slings["2"] };
     [1, 2].forEach((slot) => {
-      const a = this.slings[slot];
-      this.add.rectangle(a.x, (GROUND_Y + a.y + 10) / 2, 10, GROUND_Y - a.y + 10, 0x5b3a20);
-      const fork = this.add.graphics();
-      fork.lineStyle(6, SIDE_COLOR[slot], 1);
-      fork.lineBetween(a.x - 14, a.y + 30, a.x, a.y);
-      fork.lineBetween(a.x + 14, a.y + 30, a.x, a.y);
+      drawSlingBack(this, this.slings[slot], GROUND_Y, SIDE_COLOR[slot]);
     });
     this.anchor = this.slings[1];
 
@@ -133,18 +132,16 @@ class BattleScene extends Phaser.Scene {
     [1, 2].forEach((slot) => {
       const x = slot === 1 ? 470 : WORLD_W - 470;
       this.nameTags[slot] = this.add.text(x, GROUND_Y - 330, "", {
-        fontSize: "20px",
-        fontFamily: "Malgun Gothic, sans-serif",
-        color: "#ffffff",
-        backgroundColor: slot === 1 ? "#2b5c99cc" : "#99302fcc",
-        padding: { x: 10, y: 4 },
-      }).setOrigin(0.5).setDepth(2);
+        ...hudStyle(20),
+        backgroundColor: slot === 1 ? "#2b5c99dd" : "#99302fdd",
+      }).setOrigin(0.5).setDepth(5);
     });
 
     // ---- 지형(바위)과 블록 ----
     MAP.blocks.filter((b) => b.type === "rock").forEach((b) => {
       const rock = this.add.rectangle(b.x, b.y, b.w, b.h, 0x5b5148).setStrokeStyle(2, 0x3a332c);
       addStaticBox(this, b.x, b.y, b.w, b.h, rock);
+      skinBlock(this, rock, b, this.theme);
     });
     this.blocks = [];
     this.rebuildBlocks(
@@ -154,8 +151,12 @@ class BattleScene extends Phaser.Scene {
 
     // ---- 새 ----
     // 텍스처를 늘리면 흐려지므로 도형(원)으로 그려서 어떤 해상도에서도 선명하게 한다.
-    this.bird = this.add.circle(this.anchor.x, this.anchor.y, 18, 0xe24b4a).setStrokeStyle(2, 0x791f1f);
+    createBands(this);
+    this.bird = this.add.circle(this.anchor.x, this.anchor.y, 18, 0xe24b4a).setStrokeStyle(2, 0x791f1f).setDepth(3);
     addBirdBody(this, this.bird, 18);
+    skinBird(this, this.bird, 18);
+    createFrontBand(this);
+    [1, 2].forEach((slot) => drawSlingFront(this, this.slings[slot]));
     this.birdTouchedAt = -1;
 
     // 부딪힌 순간의 속도로 블록 데미지를 계산한다(새에 맞든, 떨어지든, 깔리든).
@@ -194,49 +195,25 @@ class BattleScene extends Phaser.Scene {
     this.input.on("wheel", (pointer, objs, dx, dy) => this.scrollCameraBy(dx + dy));
 
     // ---- 화면 고정 UI ----
-    const uiStyle = {
-      fontSize: "16px",
-      fontFamily: "Malgun Gothic, sans-serif",
-      color: "#ffffff",
-      backgroundColor: "#00000055",
-      padding: { x: 8, y: 4 },
-    };
-    this.infoText = this.add.text(16, 16, "", uiStyle).setScrollFactor(0).setDepth(10);
-    this.add.text(VIEW_W - 16, 16, "← → / 휠: 둘러보기   스페이스: 내 새총으로", { ...uiStyle, fontSize: "13px" })
-      .setOrigin(1, 0).setScrollFactor(0).setDepth(10);
-    this.turnText = this.add.text(VIEW_W / 2, 64, "", {
-      fontSize: "24px",
-      fontFamily: "Malgun Gothic, sans-serif",
+    this.infoText = this.add.text(16, 16, "", hudStyle(16, { lineSpacing: 4 })).setScrollFactor(0).setDepth(10);
+    this.add.text(VIEW_W - 16, 16, "← → / 휠: 둘러보기   스페이스: 내 새총으로",
+      hudStyle(13, { fontStyle: "normal", color: "#dfe7f5" })).setOrigin(1, 0).setScrollFactor(0).setDepth(10);
+    this.turnText = this.add.text(VIEW_W / 2, 64, "", hudStyle(24, { color: "#ffd76a", padding: { x: 18, y: 8 } }))
+      .setOrigin(0.5, 0).setScrollFactor(0).setDepth(10);
+    this.messageText = this.add.text(VIEW_W / 2, VIEW_H / 2, "", hudStyle(34, {
       color: "#ffd76a",
-      backgroundColor: "#00000088",
-      padding: { x: 16, y: 6 },
-    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(10);
-    this.messageText = this.add.text(VIEW_W / 2, VIEW_H / 2, "", {
-      fontSize: "34px",
-      fontFamily: "Malgun Gothic, sans-serif",
-      color: "#ffd76a",
-      backgroundColor: "#00000099",
-      padding: { x: 20, y: 12 },
+      backgroundColor: "#0d1526dd",
+      padding: { x: 28, y: 18 },
       align: "center",
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(10).setVisible(false);
+      stroke: "#5a3300",
+      strokeThickness: 6,
+    })).setOrigin(0.5).setScrollFactor(0).setDepth(10).setVisible(false);
 
     sharpenScene(this);
+    this.cameras.main.fadeIn(450, 0, 0, 0);
     this.cameras.main.centerOn(this.slingCameraCenter(1).x, this.slingCameraCenter(1).y);
     this.ready = true;
     this.applyState();
-  }
-
-  drawBackground() {
-    const far = this.add.graphics().setScrollFactor(0.3, 1);
-    far.fillStyle(0x9cc7a0, 1);
-    for (let x = -200; x < WORLD_W; x += 520) far.fillEllipse(x + 260, GROUND_Y + 20, 700, 260);
-    const clouds = this.add.graphics().setScrollFactor(0.15, 0.6);
-    clouds.fillStyle(0xffffff, 0.75);
-    for (let i = 0, x = 120; x < WORLD_W; i++, x += 430) {
-      const y = 70 + ((i * 97) % 160);
-      clouds.fillEllipse(x, y, 140, 44);
-      clouds.fillEllipse(x + 50, y - 14, 90, 40);
-    }
   }
 
   // ---------------- 블록 ----------------
@@ -260,7 +237,7 @@ class BattleScene extends Phaser.Scene {
       obj.setData("id", s.id);
       obj.setData("type", b.type);
       obj.setData("hp", s.hp);
-      if (b.type === "stone" && s.hp < 2) obj.setAlpha(0.75); // 금 간 돌
+      skinBlock(this, obj, b, this.theme, b.type === "pig" ? SIDE_COLOR[b.side] : undefined); // 금 간 돌도 스킨이 그린다
       this.blocks.push(obj);
     });
   }
@@ -285,6 +262,7 @@ class BattleScene extends Phaser.Scene {
     const [a, b] = pairObjects(pair);
     if (!a || !b || pair.isSensor) return;
     const speed = impactSpeed(pair);
+    if (a === this.bird || b === this.bird) hitFx(this, this.bird.x, this.bird.y, speed);
     [[a, b], [b, a]].forEach(([block, other]) => {
       if (!block.getData || !block.getData("type") || block.getData("dead")) return;
       const damage = impactDamage(block.getData("type"), speed, other === this.bird);
@@ -296,9 +274,10 @@ class BattleScene extends Phaser.Scene {
     const hp = block.getData("hp") - damage;
     block.setData("hp", hp);
     if (hp > 0) {
-      block.setAlpha(0.75);
+      redrawSkin(block); // 금 간 돌
       return;
     }
+    breakFx(this, block, block.getData("type"));
     this.blocks = this.blocks.filter((o) => o !== block);
     removeBlockWithFade(this, block);
     wakeAll(this.blocks);
@@ -385,14 +364,8 @@ class BattleScene extends Phaser.Scene {
     });
   }
 
+  // 당긴 방향은 고무줄(visuals.js)이 보여 주므로 궤적 미리보기만 그린다.
   drawAim(px, py) {
-    this.aimLine.clear();
-    this.aimLine.lineStyle(3, 0xffffff, 0.85);
-    this.aimLine.beginPath();
-    this.aimLine.moveTo(this.anchor.x, this.anchor.y);
-    this.aimLine.lineTo(px, py);
-    this.aimLine.strokePath();
-
     this.trajectoryDots.clear();
     const dx = this.anchor.x - px;
     const dy = this.anchor.y - py;
@@ -402,13 +375,15 @@ class BattleScene extends Phaser.Scene {
     const vx = Math.cos(angle) * power;
     const vy = Math.sin(angle) * power;
     const gravity = GRAVITY;
-    this.trajectoryDots.fillStyle(0xffffff, 0.7);
-    for (let i = 1; i <= 8; i++) {
-      const t = i * 0.09;
+    for (let i = 1; i <= 10; i++) {
+      const t = i * 0.08;
       const x = this.anchor.x + vx * t;
       const y = this.anchor.y + vy * t + 0.5 * gravity * t * t;
       if (y > GROUND_Y) break;
-      this.trajectoryDots.fillCircle(x, y, 3);
+      this.trajectoryDots.fillStyle(0x000000, 0.25 * (1 - i / 12));
+      this.trajectoryDots.fillCircle(x + 1, y + 1.5, 5 - i * 0.3);
+      this.trajectoryDots.fillStyle(0xffffff, 0.95 * (1 - i / 12));
+      this.trajectoryDots.fillCircle(x, y, 5 - i * 0.3);
     }
   }
 
@@ -422,6 +397,7 @@ class BattleScene extends Phaser.Scene {
     this.shooterSlot = slot;
     this.bird.setPosition(this.anchor.x, this.anchor.y);
     releaseBird(this.bird, vx, vy);
+    launchFx(this, this.anchor.x, this.anchor.y);
     this.isFlying = true;
     this.flightTime = 0;
     this.settleTimer = 0;
@@ -456,6 +432,7 @@ class BattleScene extends Phaser.Scene {
     if (!this.isFlying) return;
 
     this.flightTime += delta;
+    trailFx(this, this.bird, this.flightTime);
     // 바닥/블록 위를 구르는 새는 구름 저항으로 멈추게 한다.
     if (time - this.birdTouchedAt < 100) dampRolling(this.bird, Math.pow(0.15, delta / 1000));
     const offScreen = this.bird.x > WORLD_W + 40 || this.bird.x < -40 || this.bird.y > WORLD_H + 100;
@@ -546,7 +523,11 @@ class BattleScene extends Phaser.Scene {
       left: s.winner === mySlot ? "상대가 나갔습니다" : "연결이 끊겨 기권 처리되었습니다",
     }[s.reason] || "";
     this.messageText.setText(`${text}\n${why}\n(로비로 돌아가 새 방을 만들어 주세요)`);
-    this.messageText.setVisible(true);
+    if (!this.messageText.visible) {
+      this.messageText.setVisible(true);
+      popIn(this, this.messageText);
+      if (s.winner === mySlot) confettiFx(this);
+    }
   }
 }
 
