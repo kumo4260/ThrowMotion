@@ -4,9 +4,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from matches.models import Match
 
-from .maps import BIG_MAPS, MAPS, PRACTICE_MAPS, WALL_THICKNESS, pig_count
+from .maps import BIG_MAPS, MAPS, MAPS_BY_ID, PRACTICE_MAPS, WALL_THICKNESS, pig_count
 
 User = get_user_model()
 PASSWORD = "slingshot-Pass-1234"
@@ -115,11 +114,10 @@ class FlowTests(TestCase):
         )
         self.assertRedirects(res, url)
 
-    def test_map_select_shows_clear_count(self):
-        user = User.objects.get(username="kumo")
-        Match.objects.create(user=user, result="win", map_name="초원 마을")
-        Match.objects.create(user=user, result="win", map_name="초원 마을")
-        Match.objects.create(user=user, result="lose", map_name="초원 마을")
+    def test_map_select_cards_show_only_stage_difficulty_and_counts(self):
         self.client.login(username="kumo", password=PASSWORD)
         res = self.client.get(reverse("map_select"))
-        self.assertContains(res, "클리어 2회")
+        self.assertContains(res, "스테이지 1")
+        self.assertContains(res, "새 6마리")
+        self.assertContains(res, "돼지 3마리")
+        self.assertNotContains(res, MAPS_BY_ID["meadow"]["description"])

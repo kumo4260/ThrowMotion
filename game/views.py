@@ -2,8 +2,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import render
 
-from matches.models import Match
-
 from .maps import BIG_MAPS, GROUND_HEIGHT, MAPS_BY_ID, PRACTICE_MAPS, pig_count
 
 BLOCK_FILL = {"wood": "#c98a4b", "stone": "#8a8f98", "rock": "#5b5148"}
@@ -20,8 +18,8 @@ def mode_select(request):
     return render(request, "game/mode_select.html")
 
 
-def _card(map_data, wins_by_name):
-    """맵 선택 카드에 필요한 값(미리보기 도형, 돼지 수, 클리어 횟수)을 만든다."""
+def _card(map_data):
+    """맵 선택 카드에 필요한 값(미리보기 도형, 돼지 수)을 만든다."""
     preview = []
     for b in map_data["blocks"]:
         if b["type"] == "pig":
@@ -45,21 +43,14 @@ def _card(map_data, wins_by_name):
         "preview_h": min(700, map_data["height"]),
         "preview_blocks": preview,
         "pigs": pig_count(map_data),
-        "wins": wins_by_name.get(map_data["name"], 0),
     }
 
 
 @login_required
 def map_select(request):
-    wins_by_name = {}
-    for name in Match.objects.filter(user=request.user, result=Match.RESULT_WIN).values_list(
-        "map_name", flat=True
-    ):
-        wins_by_name[name] = wins_by_name.get(name, 0) + 1
-
     groups = [
-        {"title": "대형 맵", "css": "wide-cards", "maps": [_card(m, wins_by_name) for m in BIG_MAPS]},
-        {"title": "연습 맵", "css": "", "maps": [_card(m, wins_by_name) for m in PRACTICE_MAPS]},
+        {"title": "대형 맵", "css": "wide-cards", "maps": [_card(m) for m in BIG_MAPS]},
+        {"title": "연습 맵", "css": "", "maps": [_card(m) for m in PRACTICE_MAPS]},
     ]
     return render(request, "game/map_select.html", {"groups": groups})
 
