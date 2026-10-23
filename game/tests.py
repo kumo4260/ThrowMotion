@@ -127,9 +127,9 @@ class FlowTests(TestCase):
 
     def test_map_select_shows_clear_count(self):
         user = User.objects.get(username="kumo")
-        Match.objects.create(user=user, result="win", map_name="초원 마을")
-        Match.objects.create(user=user, result="win", map_name="초원 마을")
-        Match.objects.create(user=user, result="lose", map_name="초원 마을")
+        Match.objects.create(user=user, result="win", map_name="스테이지 1")
+        Match.objects.create(user=user, result="win", map_name="스테이지 1")
+        Match.objects.create(user=user, result="lose", map_name="스테이지 1")
         self.client.login(username="kumo", password=PASSWORD)
         res = self.client.get(reverse("map_select"))
         self.assertContains(res, "클리어 2회")
