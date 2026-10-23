@@ -62,6 +62,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "game.context_processors.features",
             ],
         },
     },
@@ -69,6 +70,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "slingshot_game.wsgi.application"
 ASGI_APPLICATION = "slingshot_game.asgi.application"
+
+# 1대1 요새전(멀티플레이)을 켤지 여부. 지금은 솔로 플레이만 공개하려고 기본값을 꺼 둔다.
+# 코드는 그대로 남아 있어서 MULTIPLAYER_ENABLED=1 환경변수만 주면 다시 열린다.
+MULTIPLAYER_ENABLED = os.environ.get("MULTIPLAYER_ENABLED") == "1"
 
 # 1대1 요새전 WebSocket 메시지 전달. 방 상태가 서버 메모리에 있어서
 # 서버 프로세스 하나(daphne 1개)로 돌리는 것을 전제로 메모리 레이어를 쓴다.

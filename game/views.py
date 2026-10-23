@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
-from django.shortcuts import render
+from django.conf import settings
+from django.shortcuts import redirect, render
 
 from matches.models import Match
 
@@ -17,6 +18,9 @@ def home(request):
 @login_required
 def mode_select(request):
     """로그인 직후 화면: 솔로 플레이(맵 선택)와 1대1 멀티플레이(요새전 로비) 중에서 고른다."""
+    if not settings.MULTIPLAYER_ENABLED:
+        # 멀티플레이가 꺼져 있으면 고를 게 없으니 바로 맵 선택으로 보낸다.
+        return redirect("map_select")
     return render(request, "game/mode_select.html")
 
 

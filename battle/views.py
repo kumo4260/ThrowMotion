@@ -1,4 +1,8 @@
+from functools import wraps
+
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -12,6 +16,19 @@ LOBBY_ERRORS = {
 }
 
 
+def multiplayer_required(view):
+    """멀티플레이가 꺼져 있으면(settings.MULTIPLAYER_ENABLED) 요새전 페이지를 404로 막는다."""
+
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if not settings.MULTIPLAYER_ENABLED:
+            raise Http404("멀티플레이는 지금 열려 있지 않습니다.")
+        return view(request, *args, **kwargs)
+
+    return wrapper
+
+
+@multiplayer_required
 @login_required
 def lobby(request):
     """멀티플레이 로비: 방 만들기, 코드로 참가하기, 기다리는 방 목록."""
@@ -27,6 +44,7 @@ def lobby(request):
     )
 
 
+@multiplayer_required
 @login_required
 @require_POST
 def create(request):
@@ -34,6 +52,7 @@ def create(request):
     return redirect("battle:room", code=room.code)
 
 
+@multiplayer_required
 @login_required
 def join(request):
     code = (request.GET.get("code") or "").strip().upper()
@@ -44,6 +63,7 @@ def _lobby_with_error(key):
     return redirect(f"{reverse('battle:lobby')}?error={key}")
 
 
+@multiplayer_required
 @login_required
 def room(request, code):
     """요새전 게임 화면. 실제 입장(자리 배정)은 WebSocket 연결에서 한다."""

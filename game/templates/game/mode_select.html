@@ -31,10 +31,12 @@
     <h2>솔로 플레이</h2>
     <p>대형 맵 4개와 연습 맵 2개 중 하나를 골라 혼자서 돼지를 모두 쓰러뜨립니다.</p>
   </a>
+  {% if multiplayer_enabled %}
   <a class="mode" id="multi-mode" href="{% url 'battle:lobby' %}">
     <div class="icon">⚔️</div>
     <h2>멀티플레이 (1대1 요새전)</h2>
     <p>맵 양 끝에 각자의 요새를 두고 상대와 번갈아 쏩니다. 상대 요새의 돼지를 먼저 모두 쓰러뜨리면 승리!</p>
   </a>
+  {% endif %}
 </section>
 {% endblock %}

@@ -1,7 +1,7 @@
 import json
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from matches.models import Match
@@ -75,7 +75,7 @@ class FlowTests(TestCase):
 
     def test_login_then_map_select_then_play(self):
         res = self.client.post(reverse("login"), {"username": "kumo", "password": PASSWORD})
-        self.assertRedirects(res, reverse("mode_select"))
+        self.assertRedirects(res, reverse("mode_select"), fetch_redirect_response=False)
 
         res = self.client.get(reverse("map_select"))
         self.assertEqual(res.status_code, 200)
@@ -87,6 +87,16 @@ class FlowTests(TestCase):
         self.assertContains(res, 'id="map-data"')
         self.assertContains(res, reverse("matches:record"))
 
+    @override_settings(MULTIPLAYER_ENABLED=False)
+    def test_multiplayer_hidden_by_default(self):
+        self.client.login(username="kumo", password=PASSWORD)
+        res = self.client.get(reverse("mode_select"))
+        self.assertRedirects(res, reverse("map_select"))
+        res = self.client.get(reverse("home"))
+        self.assertNotContains(res, reverse("battle:lobby"))
+        self.assertNotContains(res, "요새전")
+
+    @override_settings(MULTIPLAYER_ENABLED=True)
     def test_mode_select_offers_solo_and_multiplayer(self):
         res = self.client.get(reverse("mode_select"))
         self.assertRedirects(res, f"{reverse('login')}?next={reverse('mode_select')}")
