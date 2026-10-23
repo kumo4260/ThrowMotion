@@ -4,7 +4,7 @@ from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase, TransactionTestCase
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 
 from matches.models import Match
@@ -149,6 +149,7 @@ class RoomRuleTests(TestCase):
         self.assertEqual(self.room.reason, "left")
 
 
+@override_settings(MULTIPLAYER_ENABLED=True)
 class LobbyViewTests(TestCase):
     def setUp(self):
         rooms.ROOMS.clear()
@@ -193,6 +194,7 @@ class LobbyViewTests(TestCase):
         self.assertContains(res, "alice님의 방")
 
 
+@override_settings(MULTIPLAYER_ENABLED=True)
 class BattleSocketTests(TransactionTestCase):
     """두 사람이 WebSocket으로 접속해서 한 판을 끝까지 하는 흐름."""
 
@@ -313,3 +315,25 @@ class BattleSocketTests(TransactionTestCase):
         self.assertNotIn(f"forfeit2", {k for k, t in room.timers.items() if not t.done()})
         await a.disconnect()
         await b2.disconnect()
+
+
+@override_settings(MULTIPLAYER_ENABLED=False)
+class MultiplayerDisabledTests(TransactionTestCase):
+    """멀티플레이가 꺼져 있으면(기본값) 로비와 WebSocket 모두 막힌다."""
+
+    def setUp(self):
+        rooms.ROOMS.clear()
+        User.objects.create_user("alice", password=PASSWORD)
+
+    def test_lobby_and_room_pages_are_404(self):
+        self.client.login(username="alice", password=PASSWORD)
+        room = rooms.create_room(User.objects.get(username="alice").id, "alice")
+        self.assertEqual(self.client.get(reverse("battle:lobby")).status_code, 404)
+        self.assertEqual(self.client.post(reverse("battle:create")).status_code, 404)
+        self.assertEqual(self.client.get(reverse("battle:room", args=[room.code])).status_code, 404)
+
+    async def test_websocket_is_refused(self):
+        room = rooms.create_room(1, "alice")
+        comm = WebsocketCommunicator(application, f"/ws/battle/{room.code}/", headers=[(b"origin", b"http://localhost")])
+        connected, _ = await comm.connect()
+        self.assertFalse(connected)

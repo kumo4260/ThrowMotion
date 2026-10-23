@@ -19,6 +19,7 @@ import asyncio
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
+from django.conf import settings
 
 from matches.models import Match
 
@@ -103,6 +104,9 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
     slot = None
 
     async def connect(self):
+        if not settings.MULTIPLAYER_ENABLED:
+            await self.close()
+            return
         user = self.scope.get("user")
         await self.accept()
         if not user or not user.is_authenticated:
